@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import queue
+import shutil
+import subprocess
+import threading
 import tkinter as tk
 import time
 from pathlib import Path
@@ -26,6 +29,9 @@ PALETTE = {
     "red": "#dc322f",
     "magenta": "#d33682",
 }
+
+APP_VERSION = "v1.2"
+NPM_PACKAGE_NAME = "claw-code-ubuntu-desktopui"
 
 
 class MainWindow(tk.Tk):
@@ -119,7 +125,10 @@ class MainWindow(tk.Tk):
 
         help_menu = tk.Menu(menubar, tearoff=False, background=PALETTE["base2"], foreground=PALETTE["base01"], font=menu_font)
         help_menu.add_command(label="命令帮助", command=lambda: self._submit_request("/help"))
+        help_menu.add_command(label="更新桌面组件", command=self._run_update)
         help_menu.add_command(label="关于工具调用适配", command=self._show_tool_help)
+        help_menu.add_separator()
+        help_menu.add_command(label=f"当前版本 {APP_VERSION}", command=self._show_version_info)
         menubar.add_cascade(label="帮助", menu=help_menu)
         self.config(menu=menubar)
 
@@ -146,7 +155,7 @@ class MainWindow(tk.Tk):
         ).pack(anchor="w")
         ttk.Label(
             masthead,
-            text="Solarized Light 中文界面，统一承载模型配置、命令面板、进程托管与安全清理。",
+            text=f"Solarized Light 中文界面，统一承载模型配置、命令面板、进程托管与安全清理。当前发布版 {APP_VERSION}。",
             background=PALETTE["base3"],
             foreground=PALETTE["base00"],
             font=("Noto Sans CJK SC", 9),
@@ -386,6 +395,125 @@ class MainWindow(tk.Tk):
             "Gemma JSON 提示适配：把工具定义注入系统提示词，要求模型返回 JSON 对象，再由 CLI 回解析并执行工具。",
         )
 
+    def _show_version_info(self) -> None:
+        messagebox.showinfo(
+            "版本信息",
+            f"Claw Code Ubuntu Desktop UI\n当前版本：{APP_VERSION}\n更新通道：npm / GitHub Release",
+        )
+
+    def _run_update(self) -> None:
+        if not messagebox.askyesno(
+            "更新桌面组件",
+            "将通过 npm 安装最新发布版，并把桌面组件重新部署到当前 claw-code 根目录。\n\n更新完成后建议重启桌面窗口。是否继续？",
+        ):
+            return
+        self.chat.add_message(
+            "已启动更新任务。系统会拉取最新 npm 发布版，并重新部署当前桌面组件。",
+            role="system",
+            title="更新任务",
+        )
+        self.status_var.set("更新任务执行中")
+        threading.Thread(target=self._run_update_job, daemon=True).start()
+
+    def _run_update_job(self) -> None:
+        started_at = time.time()
+        npm_bin = shutil.which("npm")
+        if npm_bin is None:
+            self.results.put(
+                CommandResult(
+                    request_text="__ui_update__",
+                    argv=["npm"],
+                    exit_code=127,
+                    stdout="",
+                    stderr="未找到 npm，无法执行自动更新。",
+                    started_at=started_at,
+                    finished_at=time.time(),
+                )
+            )
+            return
+
+        try:
+            install_proc = subprocess.run(
+                [npm_bin, "install", "-g", f"{NPM_PACKAGE_NAME}@latest"],
+                cwd=self.project_root.parent,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            stdout_parts = [install_proc.stdout.strip()] if install_proc.stdout.strip() else []
+            stderr_parts = [install_proc.stderr.strip()] if install_proc.stderr.strip() else []
+            if install_proc.returncode != 0:
+                self.results.put(
+                    CommandResult(
+                        request_text="__ui_update__",
+                        argv=list(install_proc.args),
+                        exit_code=install_proc.returncode,
+                        stdout="\n\n".join(stdout_parts),
+                        stderr="\n\n".join(stderr_parts),
+                        started_at=started_at,
+                        finished_at=time.time(),
+                    )
+                )
+                return
+
+            prefix_proc = subprocess.run(
+                [npm_bin, "prefix", "-g"],
+                cwd=self.project_root.parent,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            if prefix_proc.returncode != 0:
+                stderr_parts.append(prefix_proc.stderr.strip() or "无法解析 npm 全局安装目录。")
+                self.results.put(
+                    CommandResult(
+                        request_text="__ui_update__",
+                        argv=list(prefix_proc.args),
+                        exit_code=prefix_proc.returncode,
+                        stdout="\n\n".join(filter(None, stdout_parts)),
+                        stderr="\n\n".join(filter(None, stderr_parts)),
+                        started_at=started_at,
+                        finished_at=time.time(),
+                    )
+                )
+                return
+
+            installer_path = Path(prefix_proc.stdout.strip()) / "bin" / "claw-code-ubuntu-desktopui-install"
+            update_proc = subprocess.run(
+                [str(installer_path), "--yes", "--target", str(self.project_root.parent)],
+                cwd=self.project_root.parent,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            if update_proc.stdout.strip():
+                stdout_parts.append(update_proc.stdout.strip())
+            if update_proc.stderr.strip():
+                stderr_parts.append(update_proc.stderr.strip())
+            self.results.put(
+                CommandResult(
+                    request_text="__ui_update__",
+                    argv=list(update_proc.args),
+                    exit_code=update_proc.returncode,
+                    stdout="\n\n".join(filter(None, stdout_parts)),
+                    stderr="\n\n".join(filter(None, stderr_parts)),
+                    started_at=started_at,
+                    finished_at=time.time(),
+                )
+            )
+        except Exception as exc:
+            self.results.put(
+                CommandResult(
+                    request_text="__ui_update__",
+                    argv=[NPM_PACKAGE_NAME],
+                    exit_code=1,
+                    stdout="",
+                    stderr=str(exc),
+                    started_at=started_at,
+                    finished_at=time.time(),
+                )
+            )
+
     def _submit_request(self, text: str) -> None:
         request = text.strip()
         if not request:
@@ -437,6 +565,9 @@ class MainWindow(tk.Tk):
     def _handle_result(self, result: CommandResult) -> None:
         summary = f"退出码 {result.exit_code} · {result.duration_seconds:.2f}s"
         self.status_var.set(summary)
+        if result.request_text == "__ui_update__":
+            self._handle_update_result(result)
+            return
         pending_queue = self.pending_messages.get(result.request_text, [])
         pending = pending_queue.pop(0) if pending_queue else None
         if not pending_queue and result.request_text in self.pending_messages:
@@ -475,6 +606,24 @@ class MainWindow(tk.Tk):
             if isinstance(message, str):
                 return message.strip()
         return result.stdout
+
+    def _handle_update_result(self, result: CommandResult) -> None:
+        if result.exit_code == 0:
+            details = result.stdout or "更新已完成。"
+            self.chat.add_message(
+                f"{details}\n\n请关闭并重新打开桌面窗口，以加载最新版本。",
+                role="system",
+                title="更新完成",
+            )
+            self.status_var.set("更新完成，等待重启")
+            return
+
+        self.chat.add_message(
+            result.stderr or result.stdout or "更新失败，未返回详细信息。",
+            role="error",
+            title="更新失败",
+        )
+        self.status_var.set("更新失败")
 
     def _tick_pending_message(self, request: str) -> None:
         pending_queue = self.pending_messages.get(request)

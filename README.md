@@ -1,5 +1,7 @@
 # claw-code-ubuntu-desktopUI
 
+当前发布版本 / Current release: `v1.2`
+
 ## 中文说明
 
 ### 项目简介
@@ -20,6 +22,7 @@
 - 右侧控制栏可滚动
 - 自动进程托管与退出清理
 - Gemma 类模型的宽口径工具调用适配
+- 帮助菜单内置“更新桌面组件”入口
 
 ### 安装方式
 
@@ -55,6 +58,7 @@ claw-code-ubuntu-desktopui-install
 6. 自动写入 `~/.config/claw-code-desktop/settings.json`。
 7. 自动创建 `~/Desktop/claw-code.desktop` 快捷方式。
 8. 若未找到 `claw-code`，则提示是否安装本地版本。
+9. 已安装后，可在桌面窗口中使用“帮助 > 更新桌面组件”直接拉取最新发布版并重新部署。
 
 ### 默认探测的模型接口
 
@@ -130,6 +134,7 @@ Current UI capabilities include:
 - Scrollable right control sidebar
 - Managed process lifecycle and cleanup on exit
 - Broad tool-calling compatibility for Gemma-family models
+- Built-in `Help > Update Desktop Components` action
 
 ### Installation
 
@@ -165,6 +170,7 @@ The installer performs the following steps:
 6. Write `~/.config/claw-code-desktop/settings.json`.
 7. Create `~/Desktop/claw-code.desktop`.
 8. If `claw-code` is not found, prompt to install a local bundled version.
+9. After installation, the desktop window can self-update through `Help > Update Desktop Components`.
 
 ### Probed model endpoints
 
