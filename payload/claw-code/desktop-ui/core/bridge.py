@@ -44,6 +44,7 @@ class ClawBridge:
         self.base_env = dict(os.environ)
         self.is_autopilot = False
         self.history: list[str] = []
+        self.conversation: list[tuple[str, str]] = []
         self._lock = threading.Lock()
         self._active: dict[int, subprocess.Popen[str]] = {}
 
@@ -63,6 +64,9 @@ class ClawBridge:
 
     def shutdown(self) -> None:
         self.lifecycle.terminate_registered()
+
+    def reset_conversation(self) -> None:
+        self.conversation.clear()
 
     def submit(
         self,
@@ -96,6 +100,8 @@ class ClawBridge:
         if text.startswith("/"):
             return self._build_slash_command(text, settings)
 
+        effective_prompt = self._compose_prompt(text)
+
         argv = [
             str(self.claw_bin),
             "--model",
@@ -105,7 +111,7 @@ class ClawBridge:
         ]
         if self.is_autopilot:
             argv.append("--dangerously-skip-permissions")
-        argv.extend(["prompt", text])
+        argv.extend(["prompt", effective_prompt])
         return argv
 
     def _build_slash_command(
@@ -186,6 +192,7 @@ class ClawBridge:
             self._append_history(
                 f"完成[{result.exit_code}] {Path(argv[0]).name} · {result.duration_seconds:.2f}s"
             )
+            self._record_conversation_turn(request_text, result)
             on_complete(result)
         except Exception as exc:
             result = CommandResult(
@@ -210,6 +217,43 @@ class ClawBridge:
         timestamp = time.strftime("%H:%M:%S")
         self.history.append(f"[{timestamp}] {entry}")
         self.history[:] = self.history[-200:]
+
+    def _compose_prompt(self, latest_user_text: str) -> str:
+        history = self.conversation[-12:]
+        if not history:
+            return latest_user_text
+        lines = [
+            "Continue this existing conversation. Use the prior context when answering the latest user message.",
+            "",
+            "Conversation so far:",
+        ]
+        for role, text in history:
+            prefix = "User" if role == "user" else "Assistant"
+            lines.append(f"{prefix}: {text}")
+        lines.extend(
+            [
+                "",
+                "Latest user message:",
+                latest_user_text,
+            ]
+        )
+        return "\n".join(lines)
+
+    def _record_conversation_turn(self, request_text: str, result: CommandResult) -> None:
+        if request_text.strip().startswith("/"):
+            return
+        self.conversation.append(("user", request_text.strip()))
+        reply = self._extract_assistant_text(result)
+        if reply:
+            self.conversation.append(("assistant", reply))
+        self.conversation[:] = self.conversation[-24:]
+
+    def _extract_assistant_text(self, result: CommandResult) -> str:
+        if isinstance(result.parsed_stdout, dict):
+            message = result.parsed_stdout.get("message")
+            if isinstance(message, str):
+                return message.strip()
+        return result.stdout.strip()
 
     @staticmethod
     def _try_parse_json(stdout: str | None) -> object | None:

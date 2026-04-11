@@ -1084,6 +1084,7 @@ class MainWindow(tk.Tk):
     def _clear_chat(self) -> None:
         self.chat.clear()
         self.message_log.clear()
+        self.bridge.reset_conversation()
         self._seed_welcome()
         self.status_var.set(self._t("status_cleared"))
 
