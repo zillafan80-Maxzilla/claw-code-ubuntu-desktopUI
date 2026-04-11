@@ -25,6 +25,8 @@ class ChatWidget(ttk.Frame):
         self.columnconfigure(0, weight=1)
         self.rowconfigure(0, weight=1)
         self._submit_callback = None
+        self._message_seq = 0
+        self._message_widgets: dict[int, tuple[tk.Frame, tk.Label | None, tk.Label]] = {}
 
         self.canvas = tk.Canvas(
             self,
@@ -81,7 +83,7 @@ class ChatWidget(ttk.Frame):
         self.input.delete("1.0", "end")
         self._submit_callback(text)
 
-    def add_message(self, text: str, role: str, title: str | None = None) -> None:
+    def add_message(self, text: str, role: str, title: str | None = None) -> int:
         palette = {
             "user": (PALETTE["blue"], PALETTE["base3"], "e"),
             "assistant": (PALETTE["base2"], PALETTE["base01"], "w"),
@@ -129,11 +131,37 @@ class ChatWidget(ttk.Frame):
             anchor="w",
         )
         body.pack(anchor="w")
+        self._message_seq += 1
+        self._message_widgets[self._message_seq] = (outer, header if title else None, body)
         self.after_idle(self._scroll_to_bottom)
+        return self._message_seq
+
+    def update_message(
+        self,
+        message_id: int,
+        text: str,
+        title: str | None = None,
+    ) -> None:
+        widgets = self._message_widgets.get(message_id)
+        if widgets is None:
+            return
+        _outer, header, body = widgets
+        body.configure(text=text)
+        if header is not None and title is not None:
+            header.configure(text=title)
+        self.after_idle(self._scroll_to_bottom)
+
+    def remove_message(self, message_id: int) -> None:
+        widgets = self._message_widgets.pop(message_id, None)
+        if widgets is None:
+            return
+        outer, _header, _body = widgets
+        outer.destroy()
 
     def clear(self) -> None:
         for child in self.transcript.winfo_children():
             child.destroy()
+        self._message_widgets.clear()
 
     def _on_submit(self, _event) -> str:
         self.submit()

@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-import json
 import queue
 import tkinter as tk
+import time
 from pathlib import Path
 from tkinter import messagebox, ttk
 
@@ -36,6 +36,7 @@ class MainWindow(tk.Tk):
         self.settings_store = DesktopSettingsStore()
         self.bridge = ClawBridge(self.project_root, lifecycle, self.settings_store)
         self.results: queue.Queue[CommandResult] = queue.Queue()
+        self.pending_messages: dict[str, list[dict[str, object]]] = {}
 
         self.title("Claw Code 桌面控制台")
         self.geometry("1520x980")
@@ -395,10 +396,21 @@ class MainWindow(tk.Tk):
         self.chat.add_message(request, role="user", title="用户请求")
         self.status_var.set("命令执行中")
         try:
+            pending_id = self.chat.add_message(
+                "正在生成回复…",
+                role="assistant",
+                title="模型处理中",
+            )
+            self.pending_messages.setdefault(request, []).append({
+                "message_id": pending_id,
+                "started_at": time.time(),
+            })
+            self._tick_pending_message(request)
             self.bridge.submit(request, self.results.put)
             self._refresh_log()
             self._refresh_process_list()
         except Exception as exc:
+            self._clear_pending_message(request)
             self.chat.add_message(str(exc), role="error", title="桌面校验")
             self.status_var.set("请求被拒绝")
 
@@ -425,22 +437,66 @@ class MainWindow(tk.Tk):
     def _handle_result(self, result: CommandResult) -> None:
         summary = f"退出码 {result.exit_code} · {result.duration_seconds:.2f}s"
         self.status_var.set(summary)
+        pending_queue = self.pending_messages.get(result.request_text, [])
+        pending = pending_queue.pop(0) if pending_queue else None
+        if not pending_queue and result.request_text in self.pending_messages:
+            self.pending_messages.pop(result.request_text, None)
 
         if result.stdout:
             payload = self._render_stdout(result)
-            self.chat.add_message(payload, role="assistant", title="CLI 输出")
+            if pending and payload:
+                self.chat.update_message(
+                    int(pending["message_id"]),
+                    payload,
+                    title="模型回复",
+                )
+            elif payload:
+                self.chat.add_message(payload, role="assistant", title="模型回复")
+            elif pending:
+                self.chat.remove_message(int(pending["message_id"]))
         if result.stderr:
             self.chat.add_message(result.stderr, role="error", title="标准错误")
         if not result.stdout and not result.stderr:
-            self.chat.add_message("命令已完成，但没有输出内容。", role="tool", title="CLI")
+            if pending:
+                self.chat.update_message(
+                    int(pending["message_id"]),
+                    "命令已完成，但没有输出内容。",
+                    title="CLI",
+                )
+            else:
+                self.chat.add_message("命令已完成，但没有输出内容。", role="tool", title="CLI")
 
         self._refresh_log()
         self._refresh_process_list()
 
     def _render_stdout(self, result: CommandResult) -> str:
-        if result.parsed_stdout is not None:
-            return json.dumps(result.parsed_stdout, indent=2, ensure_ascii=False)
+        if isinstance(result.parsed_stdout, dict):
+            message = result.parsed_stdout.get("message")
+            if isinstance(message, str):
+                return message.strip()
         return result.stdout
+
+    def _tick_pending_message(self, request: str) -> None:
+        pending_queue = self.pending_messages.get(request)
+        if not pending_queue:
+            return
+        pending = pending_queue[0]
+        elapsed = max(time.time() - float(pending["started_at"]), 0.0)
+        self.chat.update_message(
+            int(pending["message_id"]),
+            f"正在生成回复…\n已等待 {elapsed:.1f} 秒",
+            title="模型处理中",
+        )
+        self.after(400, lambda: self._tick_pending_message(request))
+
+    def _clear_pending_message(self, request: str) -> None:
+        pending_queue = self.pending_messages.get(request, [])
+        pending = pending_queue.pop() if pending_queue else None
+        if not pending_queue and request in self.pending_messages:
+            self.pending_messages.pop(request, None)
+        if pending is None:
+            return
+        self.chat.remove_message(int(pending["message_id"]))
 
     def _refresh_log(self) -> None:
         self.log_list.delete(0, "end")
