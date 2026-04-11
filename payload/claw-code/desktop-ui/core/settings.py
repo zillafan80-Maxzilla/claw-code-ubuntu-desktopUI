@@ -12,6 +12,7 @@ class DesktopSettings:
     base_url: str = "http://127.0.0.1:8001/v1"
     api_key: str = "local-dev-token"
     tool_call_style: str = "auto"
+    locale: str = "en"
 
     def to_env(self) -> dict[str, str]:
         return {
@@ -19,6 +20,7 @@ class DesktopSettings:
             "OPENAI_API_KEY": self.api_key.strip(),
             "CLAW_DESKTOP_MODEL": self.model.strip(),
             "CLAW_TOOL_CALL_STYLE": self.tool_call_style.strip(),
+            "CLAW_DESKTOP_LOCALE": self.locale.strip() or "en",
         }
 
     def masked_api_key(self) -> str:
@@ -29,22 +31,52 @@ class DesktopSettings:
             return "*" * len(key)
         return f"{key[:4]}...{key[-4:]}"
 
-    def provider_label(self) -> str:
+    def provider_label(self, locale: str = "en") -> str:
         model = self.model.strip().lower()
         if model.startswith("openai/") or "gemma" in model:
-            return "OpenAI 兼容"
+            return {
+                "en": "OpenAI Compatible",
+                "ja": "OpenAI 互換",
+                "ko": "OpenAI 호환",
+                "zh": "OpenAI 兼容",
+            }.get(locale, "OpenAI Compatible")
         if model.startswith("claude"):
             return "Anthropic"
         if model.startswith("grok"):
             return "xAI"
-        return "自动识别"
-
-    def tool_style_label(self) -> str:
         return {
-            "auto": "自动适配",
-            "native": "原生工具协议",
-            "gemma-json": "Gemma JSON 提示适配",
-        }.get(self.tool_call_style, self.tool_call_style)
+            "en": "Auto Detect",
+            "ja": "自動判別",
+            "ko": "자동 감지",
+            "zh": "自动识别",
+        }.get(locale, "Auto Detect")
+
+    def tool_style_label(self, locale: str = "en") -> str:
+        labels = {
+            "en": {
+                "auto": "Automatic Adaptation",
+                "native": "Native Tool Protocol",
+                "gemma-json": "Gemma JSON Prompt Adapter",
+            },
+            "ja": {
+                "auto": "自動適応",
+                "native": "ネイティブツールプロトコル",
+                "gemma-json": "Gemma JSON プロンプト適応",
+            },
+            "ko": {
+                "auto": "자동 적응",
+                "native": "기본 도구 프로토콜",
+                "gemma-json": "Gemma JSON 프롬프트 어댑터",
+            },
+            "zh": {
+                "auto": "自动适配",
+                "native": "原生工具协议",
+                "gemma-json": "Gemma JSON 提示适配",
+            },
+        }
+        return labels.get(locale, labels["en"]).get(
+            self.tool_call_style, self.tool_call_style
+        )
 
 
 class DesktopSettingsStore:
@@ -64,6 +96,7 @@ class DesktopSettingsStore:
             tool_call_style=os.environ.get(
                 "CLAW_TOOL_CALL_STYLE", DesktopSettings.tool_call_style
             ),
+            locale=os.environ.get("CLAW_DESKTOP_LOCALE", DesktopSettings.locale),
         )
         if not self.path.exists():
             return defaults
@@ -76,6 +109,7 @@ class DesktopSettingsStore:
             base_url=str(payload.get("base_url") or defaults.base_url),
             api_key=str(payload.get("api_key") or defaults.api_key),
             tool_call_style=str(payload.get("tool_call_style") or defaults.tool_call_style),
+            locale=str(payload.get("locale") or defaults.locale or "en"),
         )
 
     def save(self, settings: DesktopSettings) -> None:

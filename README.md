@@ -1,6 +1,6 @@
 # claw-code-ubuntu-desktopUI
 
-当前发布版本 / Current release: `v1.2`
+当前发布版本 / Current release: `v1.3`
 
 ## 中文说明
 
@@ -16,13 +16,15 @@
 
 当前 UI 特性包括：
 
-- 完整中文界面
+- 英文、日文、韩文、中文四语言界面
 - Solarized Light 主题
 - 模型摘要与模型配置面板
 - 右侧控制栏可滚动
 - 自动进程托管与退出清理
 - Gemma 类模型的宽口径工具调用适配
 - 帮助菜单内置“更新桌面组件”入口
+- 默认语言为英文，可在“语言”菜单中即时切换
+- 启动时自动检查 npm 最新版本，旧版用户可看到更新提示并直接升级
 
 ### 安装方式
 
@@ -59,6 +61,7 @@ claw-code-ubuntu-desktopui-install
 7. 自动创建 `~/Desktop/claw-code.desktop` 快捷方式。
 8. 若未找到 `claw-code`，则提示是否安装本地版本。
 9. 已安装后，可在桌面窗口中使用“帮助 > 更新桌面组件”直接拉取最新发布版并重新部署。
+10. 自 `1.2` 起的用户打开桌面窗口后，会自动检查是否存在更新；如发现 `1.3` 或更高版本，会弹出更新提示并可直接执行升级。
 
 ### 默认探测的模型接口
 
@@ -128,13 +131,15 @@ It covers three installation paths:
 
 Current UI capabilities include:
 
-- Full Chinese localization
+- Full multilingual UI in English, Japanese, Korean, and Chinese
 - Solarized Light theme
 - Model summary and model configuration panel
 - Scrollable right control sidebar
 - Managed process lifecycle and cleanup on exit
 - Broad tool-calling compatibility for Gemma-family models
 - Built-in `Help > Update Desktop Components` action
+- English as the default language with live switching through the `Language` menu
+- Startup npm version checks so older installs can see an update prompt and upgrade directly
 
 ### Installation
 
@@ -171,6 +176,7 @@ The installer performs the following steps:
 7. Create `~/Desktop/claw-code.desktop`.
 8. If `claw-code` is not found, prompt to install a local bundled version.
 9. After installation, the desktop window can self-update through `Help > Update Desktop Components`.
+10. Users coming from `1.2` will see an upgrade prompt on startup when `1.3` or newer is available, and can update in place.
 
 ### Probed model endpoints
 

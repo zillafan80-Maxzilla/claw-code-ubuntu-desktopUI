@@ -27,6 +27,7 @@ class ChatWidget(ttk.Frame):
         self._submit_callback = None
         self._message_seq = 0
         self._message_widgets: dict[int, tuple[tk.Frame, tk.Label | None, tk.Label]] = {}
+        self._send_button: ttk.Button | None = None
 
         self.canvas = tk.Canvas(
             self,
@@ -70,8 +71,12 @@ class ChatWidget(ttk.Frame):
         self.input.bind("<Control-Return>", self._on_submit)
         self.input.bind("<Command-Return>", self._on_submit)
 
-        send_button = ttk.Button(composer, text="发送", command=self.submit)
-        send_button.grid(row=0, column=1, sticky="se", padx=(12, 0))
+        self._send_button = ttk.Button(composer, text="Send", command=self.submit)
+        self._send_button.grid(row=0, column=1, sticky="se", padx=(12, 0))
+
+    def set_locale(self, send_label: str) -> None:
+        if self._send_button is not None:
+            self._send_button.configure(text=send_label)
 
     def set_submit_callback(self, callback) -> None:
         self._submit_callback = callback
