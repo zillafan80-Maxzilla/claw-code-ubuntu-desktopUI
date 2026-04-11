@@ -61,6 +61,10 @@ class ChatWidget(ttk.Frame):
             font=("Noto Sans CJK SC", 9),
         )
         self.input.grid(row=0, column=0, sticky="ew")
+        self.input.bind("<Return>", self._on_enter_submit)
+        self.input.bind("<KP_Enter>", self._on_enter_submit)
+        self.input.bind("<Shift-Return>", self._on_insert_newline)
+        self.input.bind("<Shift-KP_Enter>", self._on_insert_newline)
         self.input.bind("<Control-Return>", self._on_submit)
         self.input.bind("<Command-Return>", self._on_submit)
 
@@ -133,6 +137,16 @@ class ChatWidget(ttk.Frame):
 
     def _on_submit(self, _event) -> str:
         self.submit()
+        return "break"
+
+    def _on_enter_submit(self, event) -> str | None:
+        if bool(event.state & 0x0001):
+            return None
+        self.submit()
+        return "break"
+
+    def _on_insert_newline(self, _event) -> str:
+        self.input.insert("insert", "\n")
         return "break"
 
     def _on_transcript_configure(self, _event) -> None:
