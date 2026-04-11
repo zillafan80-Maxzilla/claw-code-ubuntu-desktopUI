@@ -1,0 +1,29 @@
+{
+  "name": "claw-code-ubuntu-desktopui",
+  "version": "1.0.0",
+  "description": "Ubuntu desktop UI installer for Claw Code with automatic local model detection and desktop shortcut setup.",
+  "bin": {
+    "claw-code-ubuntu-desktopui-install": "./bin/claw-code-ubuntu-desktopui-install.js"
+  },
+  "scripts": {
+    "postinstall": "node ./postinstall.js",
+    "pack:local": "npm pack"
+  },
+  "files": [
+    "bin",
+    "lib",
+    "payload",
+    "templates",
+    "postinstall.js",
+    "README.md"
+  ],
+  "keywords": [
+    "claw-code",
+    "desktop-ui",
+    "ubuntu",
+    "installer",
+    "gemma"
+  ],
+  "author": "OpenAI Codex",
+  "license": "MIT"
+}

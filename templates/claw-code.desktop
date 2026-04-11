@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Claw Code Desktop
+Comment=Launch the Claw Code Ubuntu desktop UI
+Exec=__EXEC__
+Icon=__ICON__
+Path=__ROOT__
+Terminal=false
+Categories=Development;Utility;
+StartupNotify=true
