@@ -600,6 +600,7 @@ class MainWindow(tk.Tk):
         self.results: queue.Queue[CommandResult | BridgeEvent] = queue.Queue()
         self.message_log: list[dict[str, object]] = []
         self.pending_messages: dict[str, list[dict[str, object]]] = {}
+        self.discarded_requests: dict[str, int] = {}
         self.current_session: DesktopSession = self.session_store.create_session()
         self.session_rows: list[SessionSummary] = []
         self.latest_known_version: str | None = None
@@ -1226,6 +1227,35 @@ class MainWindow(tk.Tk):
             if not silent:
                 self.status_var.set(self._t("session_save_failed"))
 
+    def _mark_pending_requests_discarded(self) -> None:
+        for request, queue in list(self.pending_messages.items()):
+            if queue:
+                self.discarded_requests[request] = self.discarded_requests.get(request, 0) + len(queue)
+
+    def _should_ignore_request(self, request: str) -> bool:
+        return self.discarded_requests.get(request, 0) > 0
+
+    def _consume_discarded_request(self, request: str) -> None:
+        remaining = self.discarded_requests.get(request, 0)
+        if remaining <= 1:
+            self.discarded_requests.pop(request, None)
+        else:
+            self.discarded_requests[request] = remaining - 1
+
+    def _unload_current_session(self, *, save: bool, silent: bool = True) -> None:
+        if save:
+            self._save_current_session(silent=silent)
+        self._mark_pending_requests_discarded()
+        if self.bridge.active_process_count():
+            self.bridge.cancel_active()
+        self.bridge.reset_conversation()
+        self.pending_messages.clear()
+        self.chat.clear()
+        self.message_log.clear()
+        self._last_user_request = None
+        self._last_assistant_reply = None
+        self.chat.set_runtime_state("ended", self._t("runstate_ended"))
+
     def _load_session_into_ui(self, session: DesktopSession) -> None:
         self.current_session = session
         self.chat.clear()
@@ -1257,18 +1287,16 @@ class MainWindow(tk.Tk):
             self.status_var.set(self._t("session_load_failed"))
             return
         try:
+            if row.path != self.current_session.path:
+                self._unload_current_session(save=True, silent=True)
             self._load_session_into_ui(self.session_store.load_session(row.path))
         except Exception:
             self.status_var.set(self._t("session_load_failed"))
 
     def _start_new_session(self) -> None:
+        self._unload_current_session(save=True, silent=True)
         self.current_session = self.session_store.create_session()
         self.bridge.reset_conversation()
-        self.chat.clear()
-        self.message_log.clear()
-        self.pending_messages.clear()
-        self._last_user_request = None
-        self._last_assistant_reply = None
         self._seed_welcome()
         self._refresh_session_summary()
         self._refresh_session_list()
@@ -1657,6 +1685,8 @@ class MainWindow(tk.Tk):
             self.after(120, self._drain_results)
 
     def _handle_bridge_event(self, event: BridgeEvent) -> None:
+        if self._should_ignore_request(event.request_text):
+            return
         pending_queue = self.pending_messages.get(event.request_text, [])
         pending = pending_queue[0] if pending_queue else None
         if pending is None:
@@ -1680,6 +1710,11 @@ class MainWindow(tk.Tk):
             return
 
     def _handle_result(self, result: CommandResult) -> None:
+        if self._should_ignore_request(result.request_text):
+            self._consume_discarded_request(result.request_text)
+            self._refresh_log()
+            self._refresh_process_list()
+            return
         if result.request_text == "__ui_update__":
             self._handle_update_result(result)
             return
@@ -1864,6 +1899,7 @@ class MainWindow(tk.Tk):
     def _on_close(self) -> None:
         try:
             self.status_var.set(self._t("status_shutdown"))
+            self._save_current_session(silent=True)
             self.bridge.shutdown()
             self.lifecycle.shutdown()
         except Exception as exc:

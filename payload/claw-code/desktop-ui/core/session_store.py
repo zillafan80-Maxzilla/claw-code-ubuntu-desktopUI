@@ -85,28 +85,75 @@ class DesktopSessionStore:
             reverse=True,
         ):
             try:
-                session = self.load_session(path)
+                summary = self.summarize_session(path)
             except Exception:
                 continue
-            preview = ""
-            for message in session.messages:
-                if message.role == "user" and message.text.strip():
-                    preview = message.text.strip().splitlines()[0]
-                    break
-            if not preview:
-                preview = session.session_id
-            rows.append(
-                SessionSummary(
-                    session_id=session.session_id,
-                    path=path,
-                    created_at_ms=session.created_at_ms,
-                    updated_at_ms=session.updated_at_ms,
-                    message_count=len(session.messages),
-                    preview=preview[:80],
-                    compaction_summary=session.compaction_summary,
-                )
-            )
+            rows.append(summary)
         return rows
+
+    def summarize_session(self, path: Path) -> SessionSummary:
+        session_id = path.stem
+        created_at_ms = _now_ms()
+        updated_at_ms = created_at_ms
+        message_count = 0
+        preview = ""
+        compaction_summary: str | None = None
+
+        for row in path.read_text(encoding="utf-8").splitlines():
+            if not row.strip():
+                continue
+            payload = json.loads(row)
+            record_type = str(payload.get("type") or "")
+            if record_type == "session_meta":
+                session_id = str(payload.get("session_id") or session_id)
+                created_at_ms = int(payload.get("created_at_ms") or created_at_ms)
+                updated_at_ms = int(payload.get("updated_at_ms") or updated_at_ms)
+                continue
+            if record_type == "compaction":
+                summary = payload.get("summary")
+                if isinstance(summary, str) and summary.strip():
+                    compaction_summary = summary.strip()
+                continue
+            if record_type != "message":
+                continue
+            message = payload.get("message")
+            if not isinstance(message, dict):
+                continue
+            role = str(message.get("role") or "")
+            blocks = message.get("blocks")
+            if not isinstance(blocks, list):
+                continue
+            text_parts: list[str] = []
+            for block in blocks:
+                if not isinstance(block, dict):
+                    continue
+                block_type = str(block.get("type") or "")
+                if block_type == "text":
+                    text_value = block.get("text")
+                    if isinstance(text_value, str) and text_value.strip():
+                        text_parts.append(text_value.strip())
+                elif block_type == "tool_result":
+                    output = block.get("output")
+                    if isinstance(output, str) and output.strip():
+                        text_parts.append(output.strip())
+            if not text_parts:
+                continue
+            combined = "\n\n".join(text_parts).strip()
+            if role == "assistant" and _looks_like_raw_tool_stub(combined):
+                continue
+            message_count += 1
+            if not preview and role == "user" and combined:
+                preview = combined.splitlines()[0][:80]
+
+        return SessionSummary(
+            session_id=session_id,
+            path=path,
+            created_at_ms=created_at_ms,
+            updated_at_ms=updated_at_ms,
+            message_count=message_count,
+            preview=preview or session_id,
+            compaction_summary=compaction_summary,
+        )
 
     def load_session(self, path: Path) -> DesktopSession:
         records = path.read_text(encoding="utf-8").splitlines()
