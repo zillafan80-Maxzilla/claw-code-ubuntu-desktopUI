@@ -1,6 +1,6 @@
 {
   "name": "claw-code-ubuntu-desktopui",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "Ubuntu desktop UI installer for Claw Code with automatic local model detection and desktop shortcut setup.",
   "bin": {
     "claw-code-ubuntu-desktopui-install": "bin/claw-code-ubuntu-desktopui-install.js"

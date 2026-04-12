@@ -9,7 +9,7 @@ import time
 from pathlib import Path
 from tkinter import messagebox, ttk
 
-from core.bridge import ClawBridge, CommandResult
+from core.bridge import BridgeEvent, ClawBridge, CommandResult
 from core.lifecycle import LifecycleManager
 from core.settings import DesktopSettings, DesktopSettingsStore
 from ui.chat_widget import ChatWidget
@@ -30,8 +30,8 @@ PALETTE = {
     "magenta": "#d33682",
 }
 
-APP_VERSION = "1.3"
-APP_VERSION_NPM = "1.3.0"
+APP_VERSION = "1.5"
+APP_VERSION_NPM = "1.5.0"
 NPM_PACKAGE_NAME = "claw-code-ubuntu-desktopui"
 SUPPORTED_LOCALES = ("en", "ja", "ko", "zh")
 LANGUAGE_LABELS = {
@@ -1197,10 +1197,15 @@ class MainWindow(tk.Tk):
                 title=self._t("pending_title"),
             )
             self.pending_messages.setdefault(request, []).append(
-                {"message_id": pending_id, "started_at": time.time()}
+                {
+                    "message_id": pending_id,
+                    "started_at": time.time(),
+                    "status_text": "",
+                    "tool_message_id": None,
+                }
             )
             self._tick_pending_message(request)
-            self.bridge.submit(request, self.results.put)
+            self.bridge.submit(request, self.results.put, self.results.put)
             self._refresh_log()
             self._refresh_process_list()
         except Exception as exc:
@@ -1227,11 +1232,31 @@ class MainWindow(tk.Tk):
         try:
             while True:
                 result = self.results.get_nowait()
-                self._handle_result(result)
+                if isinstance(result, BridgeEvent):
+                    self._handle_bridge_event(result)
+                else:
+                    self._handle_result(result)
         except queue.Empty:
             pass
         finally:
             self.after(120, self._drain_results)
+
+    def _handle_bridge_event(self, event: BridgeEvent) -> None:
+        pending_queue = self.pending_messages.get(event.request_text, [])
+        pending = pending_queue[0] if pending_queue else None
+        if pending is None:
+            return
+        if event.kind == "status":
+            pending["status_text"] = event.text
+            self.status_var.set(event.text)
+            return
+        if event.kind == "tool":
+            tool_id = pending.get("tool_message_id")
+            if tool_id is None:
+                tool_id = self._chat_add(event.text, role="tool", title=self._t("cli_title"))
+                pending["tool_message_id"] = tool_id
+            else:
+                self._chat_update(int(tool_id), event.text, title=self._t("cli_title"))
 
     def _handle_result(self, result: CommandResult) -> None:
         if result.request_text == "__ui_update__":
@@ -1323,9 +1348,13 @@ class MainWindow(tk.Tk):
             return
         pending = pending_queue[0]
         elapsed = max(time.time() - float(pending["started_at"]), 0.0)
+        status_text = str(pending.get("status_text") or "").strip()
+        body = self._t("pending_body", seconds=elapsed)
+        if status_text:
+            body = f"{body}\n\n{status_text}"
         self._chat_update(
             int(pending["message_id"]),
-            self._t("pending_body", seconds=elapsed),
+            body,
             title=self._t("pending_title"),
         )
         self.after(400, lambda: self._tick_pending_message(request))
@@ -1337,6 +1366,9 @@ class MainWindow(tk.Tk):
             self.pending_messages.pop(request, None)
         if pending is None:
             return
+        tool_message_id = pending.get("tool_message_id")
+        if tool_message_id is not None:
+            self._chat_remove(int(tool_message_id))
         self._chat_remove(int(pending["message_id"]))
 
     def _refresh_log(self) -> None:
