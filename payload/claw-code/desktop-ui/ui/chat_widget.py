@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 import tkinter as tk
 from tkinter import ttk
 
@@ -23,19 +24,103 @@ class ChatWidget(ttk.Frame):
     def __init__(self, master: tk.Misc):
         super().__init__(master, style="Shell.TFrame")
         self.columnconfigure(0, weight=1)
-        self.rowconfigure(0, weight=1)
+        self.rowconfigure(2, weight=1)
         self._submit_callback = None
+        self._retry_callback = None
+        self._copy_callback = None
+        self._stop_callback = None
+        self._clear_callback = None
+        self._chip_callback = None
         self._message_seq = 0
-        self._message_widgets: dict[int, tuple[tk.Frame, tk.Label | None, tk.Label]] = {}
+        self._message_widgets: dict[int, tuple[tk.Frame, tk.Label | None, tk.Label, tk.Label | None]] = {}
         self._send_button: ttk.Button | None = None
+        self._retry_button: ttk.Button | None = None
+        self._copy_button: ttk.Button | None = None
+        self._stop_button: ttk.Button | None = None
+        self._clear_button: ttk.Button | None = None
+        self._title_label: ttk.Label | None = None
+        self._subtitle_label: ttk.Label | None = None
+        self._hint_label: ttk.Label | None = None
+        self._composer_title: ttk.Label | None = None
+        self._chip_buttons: list[ttk.Button] = []
+        self._chip_values: list[str] = []
+
+        header = ttk.Frame(self, style="Shell.TFrame")
+        header.grid(row=0, column=0, sticky="ew", pady=(0, 12))
+        header.columnconfigure(0, weight=1)
+        header.columnconfigure(1, weight=0)
+
+        title_box = ttk.Frame(header, style="Shell.TFrame")
+        title_box.grid(row=0, column=0, sticky="w")
+        self._title_label = ttk.Label(
+            title_box,
+            text="Conversation",
+            background=PALETTE["base3"],
+            foreground=PALETTE["base01"],
+            font=("Noto Sans CJK SC", 13, "bold"),
+        )
+        self._title_label.pack(anchor="w")
+        self._subtitle_label = ttk.Label(
+            title_box,
+            text="Persistent context, tools, and quick actions.",
+            background=PALETTE["base3"],
+            foreground=PALETTE["base00"],
+            font=("Noto Sans CJK SC", 8),
+        )
+        self._subtitle_label.pack(anchor="w", pady=(3, 0))
+
+        toolbar = ttk.Frame(header, style="Shell.TFrame")
+        toolbar.grid(row=0, column=1, sticky="e")
+        self._retry_button = ttk.Button(toolbar, text="Retry", command=self._on_retry)
+        self._retry_button.grid(row=0, column=0, padx=(0, 6))
+        self._copy_button = ttk.Button(toolbar, text="Copy Reply", command=self._on_copy)
+        self._copy_button.grid(row=0, column=1, padx=(0, 6))
+        self._stop_button = ttk.Button(toolbar, text="Stop", command=self._on_stop)
+        self._stop_button.grid(row=0, column=2, padx=(0, 6))
+        self._clear_button = ttk.Button(toolbar, text="Clear", command=self._on_clear)
+        self._clear_button.grid(row=0, column=3)
+
+        chips = ttk.Frame(self, style="Shell.TFrame")
+        chips.grid(row=1, column=0, sticky="ew", pady=(0, 12))
+        chips.columnconfigure((0, 1, 2, 3, 4, 5), weight=1)
+        default_chip_values = [
+            "Explain the current issue clearly.",
+            "Continue the current task from the last step.",
+            "Review changed files and list risks.",
+            "Fix the current error end-to-end.",
+            "/status",
+            "/doctor",
+        ]
+        for index, value in enumerate(default_chip_values):
+            button = ttk.Button(
+                chips,
+                text=value,
+                command=lambda idx=index: self._on_chip(idx),
+                style="Accent.TButton",
+            )
+            button.grid(row=0, column=index, sticky="ew", padx=3)
+            self._chip_buttons.append(button)
+            self._chip_values.append(value)
+
+        transcript_shell = tk.Frame(
+            self,
+            background=PALETTE["base2"],
+            highlightthickness=1,
+            highlightbackground=PALETTE["base1"],
+            padx=0,
+            pady=0,
+        )
+        transcript_shell.grid(row=2, column=0, sticky="nsew", pady=(0, 12))
+        transcript_shell.grid_rowconfigure(0, weight=1)
+        transcript_shell.grid_columnconfigure(0, weight=1)
 
         self.canvas = tk.Canvas(
-            self,
+            transcript_shell,
             background=PALETTE["base3"],
             highlightthickness=0,
             borderwidth=0,
         )
-        self.scrollbar = ttk.Scrollbar(self, orient="vertical", command=self.canvas.yview)
+        self.scrollbar = ttk.Scrollbar(transcript_shell, orient="vertical", command=self.canvas.yview)
         self.canvas.configure(yscrollcommand=self.scrollbar.set)
         self.canvas.grid(row=0, column=0, sticky="nsew")
         self.scrollbar.grid(row=0, column=1, sticky="ns")
@@ -46,24 +131,51 @@ class ChatWidget(ttk.Frame):
         self.transcript.bind("<Configure>", self._on_transcript_configure)
         self.canvas.bind("<Configure>", self._on_canvas_configure)
 
-        composer = ttk.Frame(self, style="Composer.TFrame", padding=(14, 12))
-        composer.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(12, 0))
-        composer.columnconfigure(0, weight=1)
+        composer_shell = tk.Frame(
+            self,
+            background=PALETTE["base2"],
+            highlightthickness=1,
+            highlightbackground=PALETTE["base1"],
+            padx=14,
+            pady=12,
+        )
+        composer_shell.grid(row=3, column=0, sticky="ew")
+        composer_shell.grid_columnconfigure(0, weight=1)
+
+        composer_header = ttk.Frame(composer_shell, style="Composer.TFrame")
+        composer_header.grid(row=0, column=0, sticky="ew")
+        composer_header.columnconfigure(0, weight=1)
+        self._composer_title = ttk.Label(
+            composer_header,
+            text="Prompt Composer",
+            background=PALETTE["base2"],
+            foreground=PALETTE["base01"],
+            font=("Noto Sans CJK SC", 9, "bold"),
+        )
+        self._composer_title.grid(row=0, column=0, sticky="w")
+        self._hint_label = ttk.Label(
+            composer_header,
+            text="Enter sends, Shift+Enter inserts a newline.",
+            background=PALETTE["base2"],
+            foreground=PALETTE["base00"],
+            font=("Noto Sans CJK SC", 8),
+        )
+        self._hint_label.grid(row=0, column=1, sticky="e")
 
         self.input = tk.Text(
-            composer,
-            height=4,
+            composer_shell,
+            height=6,
             wrap="word",
-            background=PALETTE["base2"],
+            background=PALETTE["base3"],
             foreground=PALETTE["base01"],
             insertbackground=PALETTE["base01"],
             relief="flat",
             borderwidth=0,
-            padx=12,
-            pady=10,
-            font=("Noto Sans CJK SC", 9),
+            padx=14,
+            pady=12,
+            font=("Noto Sans CJK SC", 10),
         )
-        self.input.grid(row=0, column=0, sticky="ew")
+        self.input.grid(row=1, column=0, sticky="ew", pady=(10, 8))
         self.input.bind("<Return>", self._on_enter_submit)
         self.input.bind("<KP_Enter>", self._on_enter_submit)
         self.input.bind("<Shift-Return>", self._on_insert_newline)
@@ -71,12 +183,69 @@ class ChatWidget(ttk.Frame):
         self.input.bind("<Control-Return>", self._on_submit)
         self.input.bind("<Command-Return>", self._on_submit)
 
-        self._send_button = ttk.Button(composer, text="Send", command=self.submit)
-        self._send_button.grid(row=0, column=1, sticky="se", padx=(12, 0))
+        footer = ttk.Frame(composer_shell, style="Composer.TFrame")
+        footer.grid(row=2, column=0, sticky="ew")
+        footer.columnconfigure(0, weight=1)
+        footer.columnconfigure(1, weight=0)
+        self._send_button = ttk.Button(footer, text="Send", command=self.submit, style="Accent.TButton")
+        self._send_button.grid(row=0, column=1, sticky="e")
 
-    def set_locale(self, send_label: str) -> None:
+    def set_ui_labels(self, labels: dict[str, object]) -> None:
+        if self._title_label is not None:
+            self._title_label.configure(text=str(labels.get("title", "Conversation")))
+        if self._subtitle_label is not None:
+            self._subtitle_label.configure(text=str(labels.get("subtitle", "")))
+        if self._composer_title is not None:
+            self._composer_title.configure(text=str(labels.get("composer_title", "Prompt Composer")))
+        if self._hint_label is not None:
+            self._hint_label.configure(text=str(labels.get("hint", "")))
         if self._send_button is not None:
-            self._send_button.configure(text=send_label)
+            self._send_button.configure(text=str(labels.get("send", "Send")))
+        if self._retry_button is not None:
+            self._retry_button.configure(text=str(labels.get("retry", "Retry")))
+        if self._copy_button is not None:
+            self._copy_button.configure(text=str(labels.get("copy", "Copy Reply")))
+        if self._stop_button is not None:
+            self._stop_button.configure(text=str(labels.get("stop", "Stop")))
+        if self._clear_button is not None:
+            self._clear_button.configure(text=str(labels.get("clear", "Clear")))
+        chip_values = labels.get("chip_values")
+        chip_labels = labels.get("chip_labels")
+        if isinstance(chip_values, list) and isinstance(chip_labels, list):
+            self._chip_values = [str(value) for value in chip_values]
+            for button, label in zip(self._chip_buttons, chip_labels):
+                button.configure(text=str(label))
+
+    def set_callbacks(
+        self,
+        *,
+        on_submit=None,
+        on_retry=None,
+        on_copy=None,
+        on_stop=None,
+        on_clear=None,
+        on_chip=None,
+    ) -> None:
+        self._submit_callback = on_submit
+        self._retry_callback = on_retry
+        self._copy_callback = on_copy
+        self._stop_callback = on_stop
+        self._clear_callback = on_clear
+        self._chip_callback = on_chip
+
+    def focus_input(self) -> None:
+        self.input.focus_set()
+
+    def insert_prompt(self, text: str, replace: bool = False) -> None:
+        if replace:
+            self.input.delete("1.0", "end")
+        if self.input.get("1.0", "end").strip():
+            self.input.insert("end", "\n")
+        self.input.insert("end", text)
+        self.focus_input()
+
+    def current_text(self) -> str:
+        return self.input.get("1.0", "end").strip()
 
     def set_submit_callback(self, callback) -> None:
         self._submit_callback = callback
@@ -96,12 +265,10 @@ class ChatWidget(ttk.Frame):
             "error": ("#fde9e7", PALETTE["red"], "w"),
             "system": ("#e8f5e7", PALETTE["green"], "w"),
         }
-        background, foreground, sticky = palette.get(
-            role, (PALETTE["base2"], PALETTE["base01"], "w")
-        )
+        background, foreground, sticky = palette.get(role, (PALETTE["base2"], PALETTE["base01"], "w"))
 
         outer = ttk.Frame(self.transcript, style="Shell.TFrame")
-        outer.grid(sticky="ew", pady=7)
+        outer.grid(sticky="ew", pady=8, padx=10)
         outer.columnconfigure(0, weight=1)
 
         card = tk.Frame(
@@ -109,21 +276,32 @@ class ChatWidget(ttk.Frame):
             background=background,
             highlightthickness=1,
             highlightbackground=PALETTE["base1"],
-            padx=14,
-            pady=10,
+            padx=16,
+            pady=12,
         )
         card.grid(sticky=sticky)
 
+        header_widget = None
+        meta_widget = None
         if title:
-            header = tk.Label(
+            header_widget = tk.Label(
                 card,
                 text=title,
                 background=background,
                 foreground=foreground,
-                font=("Noto Sans CJK SC", 7, "bold"),
+                font=("Noto Sans CJK SC", 8, "bold"),
                 anchor="w",
             )
-            header.pack(anchor="w", pady=(0, 6))
+            header_widget.pack(anchor="w")
+            meta_widget = tk.Label(
+                card,
+                text=time.strftime("%H:%M:%S"),
+                background=background,
+                foreground=PALETTE["base00"],
+                font=("DejaVu Sans Mono", 7),
+                anchor="w",
+            )
+            meta_widget.pack(anchor="w", pady=(2, 6))
 
         body = tk.Label(
             card,
@@ -131,42 +309,61 @@ class ChatWidget(ttk.Frame):
             background=background,
             foreground=foreground,
             justify="left",
-            wraplength=820,
-            font=("Noto Sans CJK SC", 9),
+            wraplength=940,
+            font=("Noto Sans CJK SC", 10),
             anchor="w",
         )
         body.pack(anchor="w")
+
         self._message_seq += 1
-        self._message_widgets[self._message_seq] = (outer, header if title else None, body)
+        self._message_widgets[self._message_seq] = (outer, header_widget, body, meta_widget)
         self.after_idle(self._scroll_to_bottom)
         return self._message_seq
 
-    def update_message(
-        self,
-        message_id: int,
-        text: str,
-        title: str | None = None,
-    ) -> None:
+    def update_message(self, message_id: int, text: str, title: str | None = None) -> None:
         widgets = self._message_widgets.get(message_id)
         if widgets is None:
             return
-        _outer, header, body = widgets
+        _outer, header, body, meta = widgets
         body.configure(text=text)
         if header is not None and title is not None:
             header.configure(text=title)
+        if meta is not None:
+            meta.configure(text=time.strftime("%H:%M:%S"))
         self.after_idle(self._scroll_to_bottom)
 
     def remove_message(self, message_id: int) -> None:
         widgets = self._message_widgets.pop(message_id, None)
         if widgets is None:
             return
-        outer, _header, _body = widgets
+        outer, _header, _body, _meta = widgets
         outer.destroy()
 
     def clear(self) -> None:
         for child in self.transcript.winfo_children():
             child.destroy()
         self._message_widgets.clear()
+
+    def _on_retry(self) -> None:
+        if self._retry_callback is not None:
+            self._retry_callback()
+
+    def _on_copy(self) -> None:
+        if self._copy_callback is not None:
+            self._copy_callback()
+
+    def _on_stop(self) -> None:
+        if self._stop_callback is not None:
+            self._stop_callback()
+
+    def _on_clear(self) -> None:
+        if self._clear_callback is not None:
+            self._clear_callback()
+
+    def _on_chip(self, index: int) -> None:
+        if self._chip_callback is None or index >= len(self._chip_values):
+            return
+        self._chip_callback(self._chip_values[index])
 
     def _on_submit(self, _event) -> str:
         self.submit()

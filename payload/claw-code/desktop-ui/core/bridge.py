@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import signal
 import subprocess
 import threading
 import time
@@ -67,6 +68,24 @@ class ClawBridge:
 
     def reset_conversation(self) -> None:
         self.conversation.clear()
+
+    def cancel_active(self) -> bool:
+        cancelled = False
+        with self._lock:
+            processes = list(self._active.values())
+        for proc in processes:
+            try:
+                os.killpg(proc.pid, signal.SIGTERM)
+                cancelled = True
+            except OSError:
+                try:
+                    proc.terminate()
+                    cancelled = True
+                except OSError:
+                    continue
+        if cancelled:
+            self._append_history("cancelled active desktop request")
+        return cancelled
 
     def submit(
         self,
@@ -223,7 +242,10 @@ class ClawBridge:
         if not history:
             return latest_user_text
         lines = [
-            "Continue this existing conversation. Use the prior context when answering the latest user message.",
+            "Continue this existing conversation.",
+            "Preserve task continuity across turns.",
+            "If the user is in the middle of a multi-step task, keep working until that task is complete.",
+            "When tools are available and useful, use them instead of only describing what you would do.",
             "",
             "Conversation so far:",
         ]
@@ -252,8 +274,81 @@ class ClawBridge:
         if isinstance(result.parsed_stdout, dict):
             message = result.parsed_stdout.get("message")
             if isinstance(message, str):
-                return message.strip()
+                return self._normalize_assistant_message(message)
         return result.stdout.strip()
+
+    def normalize_result_text(self, result: CommandResult) -> str:
+        if isinstance(result.parsed_stdout, dict):
+            message = result.parsed_stdout.get("message")
+            if isinstance(message, str):
+                normalized = self._normalize_assistant_message(message)
+                if normalized:
+                    return normalized
+        if result.stdout:
+            parsed = self._try_parse_json(result.stdout)
+            if isinstance(parsed, dict):
+                message = parsed.get("message")
+                if isinstance(message, str):
+                    normalized = self._normalize_assistant_message(message)
+                    if normalized:
+                        return normalized
+        return result.stdout.strip()
+
+    def _normalize_assistant_message(self, message: str) -> str:
+        text = message.strip()
+        if not text:
+            return ""
+        direct = self._extract_message_from_nested_json(text)
+        if direct:
+            return direct
+        repaired = text.replace("\\\"", "\"")
+        direct = self._extract_message_from_nested_json(repaired)
+        if direct:
+            return direct
+        return text
+
+    def _extract_message_from_nested_json(self, text: str) -> str | None:
+        try:
+            parsed = json.loads(text)
+        except json.JSONDecodeError:
+            parsed = None
+        if isinstance(parsed, dict):
+            inner = parsed.get("message")
+            if isinstance(inner, str):
+                nested = self._extract_message_from_nested_json(inner)
+                return nested or inner.strip()
+            if parsed.get("type") == "final" and isinstance(parsed.get("message"), str):
+                return str(parsed["message"]).strip()
+        marker = '"message"'
+        final_marker = '"type": "final"'
+        if marker in text:
+            idx = text.find(marker)
+            snippet = text[idx:]
+            colon = snippet.find(":")
+            if colon != -1:
+                value = snippet[colon + 1 :].lstrip()
+                if value.startswith('"'):
+                    chars: list[str] = []
+                    escaped = False
+                    for ch in value[1:]:
+                        if escaped:
+                            chars.append(ch)
+                            escaped = False
+                            continue
+                        if ch == "\\":
+                            escaped = True
+                            continue
+                        if ch == '"':
+                            break
+                        chars.append(ch)
+                    extracted = "".join(chars).strip()
+                    if extracted:
+                        return extracted
+        if final_marker in text and marker in text:
+            extracted = self._extract_message_from_nested_json(text.replace('\\"', '"'))
+            if extracted:
+                return extracted
+        return None
 
     @staticmethod
     def _try_parse_json(stdout: str | None) -> object | None:

@@ -489,6 +489,8 @@ class MainWindow(tk.Tk):
         self.pending_messages: dict[str, list[dict[str, object]]] = {}
         self.latest_known_version: str | None = None
         self._update_prompted = False
+        self._last_user_request: str | None = None
+        self._last_assistant_reply: str | None = None
 
         current_settings = self.settings_store.load()
         self.current_locale = self._normalize_locale(current_settings.locale)
@@ -661,8 +663,15 @@ class MainWindow(tk.Tk):
 
         self.chat = ChatWidget(left)
         self.chat.grid(row=2, column=0, sticky="nsew")
-        self.chat.set_submit_callback(self._submit_request)
-        self.chat.set_locale(self._send_label())
+        self.chat.set_callbacks(
+            on_submit=self._submit_request,
+            on_retry=self._retry_last_request,
+            on_copy=self._copy_last_reply,
+            on_stop=self._stop_active_request,
+            on_clear=self._clear_chat,
+            on_chip=self._insert_quick_prompt,
+        )
+        self.chat.set_ui_labels(self._chat_ui_labels())
 
         sidebar_shell = ttk.Frame(root, style="Sidebar.TFrame")
         sidebar_shell.grid(row=0, column=1, sticky="nsew")
@@ -784,6 +793,91 @@ class MainWindow(tk.Tk):
             "zh": "发送",
         }.get(self.current_locale, "Send")
 
+    def _chat_ui_labels(self) -> dict[str, object]:
+        localized = {
+            "en": {
+                "title": "Conversation",
+                "subtitle": "Cursor-style chat with quick actions, retries, and persistent task continuity.",
+                "composer_title": "Message Composer",
+                "hint": "Enter sends, Shift+Enter inserts a newline, Stop cancels the current run.",
+                "send": "Send",
+                "retry": "Retry",
+                "copy": "Copy Reply",
+                "stop": "Stop",
+                "clear": "Clear",
+                "chip_labels": ["Explain", "Continue", "Review", "Fix", "Status", "Doctor"],
+                "chip_values": [
+                    "Explain the current issue clearly and propose the next concrete step.",
+                    "Continue the current task from the last completed step and keep going until it is done.",
+                    "Review the current workspace changes and list the highest-risk issues first.",
+                    "Fix the current problem end-to-end and explain only what changed.",
+                    "/status",
+                    "/doctor",
+                ],
+            },
+            "ja": {
+                "title": "会話",
+                "subtitle": "Cursor 風のチャット。クイック操作、再試行、継続タスクに対応。",
+                "composer_title": "メッセージ入力",
+                "hint": "Enter で送信、Shift+Enter で改行、停止で現在の実行を中断します。",
+                "send": "送信",
+                "retry": "再試行",
+                "copy": "返信をコピー",
+                "stop": "停止",
+                "clear": "クリア",
+                "chip_labels": ["説明", "続行", "レビュー", "修正", "状態", "診断"],
+                "chip_values": [
+                    "現在の問題を明確に説明し、次の具体的な一手を示してください。",
+                    "現在のタスクを直前の完了地点から継続し、完了まで進めてください。",
+                    "現在のワークスペース変更をレビューし、最も重大なリスクから列挙してください。",
+                    "現在の問題をエンドツーエンドで修正し、変更点だけを簡潔に説明してください。",
+                    "/status",
+                    "/doctor",
+                ],
+            },
+            "ko": {
+                "title": "대화",
+                "subtitle": "Cursor 스타일 채팅. 빠른 작업, 재시도, 연속 작업 흐름을 지원합니다.",
+                "composer_title": "메시지 작성",
+                "hint": "Enter 전송, Shift+Enter 줄바꿈, 중지는 현재 실행을 취소합니다.",
+                "send": "보내기",
+                "retry": "다시 시도",
+                "copy": "응답 복사",
+                "stop": "중지",
+                "clear": "지우기",
+                "chip_labels": ["설명", "계속", "리뷰", "수정", "상태", "진단"],
+                "chip_values": [
+                    "현재 문제를 명확히 설명하고 다음 구체적인 단계를 제안해 주세요.",
+                    "현재 작업을 마지막 완료 지점부터 이어서 끝날 때까지 계속 진행해 주세요.",
+                    "현재 워크스페이스 변경사항을 리뷰하고 가장 위험한 문제부터 정리해 주세요.",
+                    "현재 문제를 처음부터 끝까지 수정하고 변경점만 간단히 설명해 주세요.",
+                    "/status",
+                    "/doctor",
+                ],
+            },
+            "zh": {
+                "title": "对话",
+                "subtitle": "更接近 Cursor 的对话面板，支持快捷动作、重试、停止和连续任务。",
+                "composer_title": "消息输入区",
+                "hint": "Enter 发送，Shift+Enter 换行，停止会取消当前运行。",
+                "send": "发送",
+                "retry": "重试",
+                "copy": "复制回复",
+                "stop": "停止",
+                "clear": "清空",
+                "chip_labels": ["解释", "继续", "评审", "修复", "状态", "体检"],
+                "chip_values": [
+                    "清楚解释当前问题，并给出下一步最具体的动作。",
+                    "从上一个完成点继续当前任务，并持续工作直到完成。",
+                    "评审当前工作区变更，并优先列出最高风险问题。",
+                    "端到端修复当前问题，只简明说明改动内容。",
+                    "/status",
+                    "/doctor",
+                ],
+            },
+        }
+        return localized.get(self.current_locale, localized["en"])
+
     def _summary_row(self, parent: tk.Misc, row: int, label: str, variable: tk.StringVar) -> None:
         tk.Label(parent, text=label, background=PALETTE["base2"], foreground=PALETTE["base00"], font=("Noto Sans CJK SC", 8), anchor="w").grid(row=row, column=0, sticky="w", padx=(0, 12), pady=3)
         tk.Label(parent, textvariable=variable, background=PALETTE["base2"], foreground=PALETTE["base01"], font=("Noto Sans CJK SC", 8, "bold"), anchor="w").grid(row=row, column=1, sticky="w", pady=3)
@@ -796,6 +890,10 @@ class MainWindow(tk.Tk):
     def _chat_add(self, text: str, role: str, title: str | None = None) -> int:
         message_id = self.chat.add_message(text, role=role, title=title)
         self.message_log.append({"message_id": message_id, "text": text, "role": role, "title": title})
+        if role == "user":
+            self._last_user_request = text
+        elif role == "assistant":
+            self._last_assistant_reply = text
         return message_id
 
     def _chat_update(self, message_id: int, text: str, title: str | None = None) -> None:
@@ -805,6 +903,14 @@ class MainWindow(tk.Tk):
                 row["text"] = text
                 if title is not None:
                     row["title"] = title
+                break
+        for row in self.message_log:
+            if row.get("message_id") == message_id:
+                role = row.get("role")
+                if role == "assistant":
+                    self._last_assistant_reply = text
+                elif role == "user":
+                    self._last_user_request = text
                 break
 
     def _chat_remove(self, message_id: int) -> None:
@@ -902,6 +1008,32 @@ class MainWindow(tk.Tk):
 
     def _show_tool_help(self) -> None:
         messagebox.showinfo(self._t("tool_help_title"), self._t("tool_help_message"))
+
+    def _retry_last_request(self) -> None:
+        if not self._last_user_request:
+            return
+        self.chat.insert_prompt(self._last_user_request, replace=True)
+        self._submit_request(self._last_user_request)
+
+    def _copy_last_reply(self) -> None:
+        if not self._last_assistant_reply:
+            return
+        self.clipboard_clear()
+        self.clipboard_append(self._last_assistant_reply)
+        self.status_var.set("copied last reply" if self.current_locale == "en" else ("已复制最后一条回复" if self.current_locale == "zh" else ("最後の返信をコピーしました" if self.current_locale == "ja" else "마지막 응답을 복사했습니다")))
+
+    def _stop_active_request(self) -> None:
+        cancelled = self.bridge.cancel_active()
+        if cancelled:
+            self.status_var.set("request cancelled" if self.current_locale == "en" else ("请求已取消" if self.current_locale == "zh" else ("リクエストを中止しました" if self.current_locale == "ja" else "요청을 중지했습니다")))
+            self._chat_add(
+                "Current desktop request cancelled." if self.current_locale == "en" else ("当前桌面请求已取消。" if self.current_locale == "zh" else ("現在のデスクトップ要求を中止しました。" if self.current_locale == "ja" else "현재 데스크톱 요청을 중지했습니다.")),
+                role="system",
+                title=self._t("cli_title"),
+            )
+
+    def _insert_quick_prompt(self, prompt: str) -> None:
+        self.chat.insert_prompt(prompt, replace=False)
 
     def _show_version_info(self) -> None:
         messagebox.showinfo(
@@ -1084,9 +1216,12 @@ class MainWindow(tk.Tk):
     def _clear_chat(self) -> None:
         self.chat.clear()
         self.message_log.clear()
+        self._last_user_request = None
+        self._last_assistant_reply = None
         self.bridge.reset_conversation()
         self._seed_welcome()
         self.status_var.set(self._t("status_cleared"))
+        self.chat.focus_input()
 
     def _drain_results(self) -> None:
         try:
@@ -1140,11 +1275,18 @@ class MainWindow(tk.Tk):
         self._refresh_process_list()
 
     def _render_stdout(self, result: CommandResult) -> str:
+        text = self.bridge.normalize_result_text(result).strip()
+        if text:
+            return text
         if isinstance(result.parsed_stdout, dict):
-            message = result.parsed_stdout.get("message")
-            if isinstance(message, str):
-                return message.strip()
-        return result.stdout
+            tool_results = result.parsed_stdout.get("tool_results")
+            if isinstance(tool_results, list) and tool_results:
+                last = tool_results[-1]
+                if isinstance(last, dict):
+                    output = last.get("output")
+                    if isinstance(output, str) and output.strip():
+                        return output.strip()
+        return result.stdout.strip()
 
     def _handle_update_result(self, result: CommandResult) -> None:
         if result.exit_code == 0:
