@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import json
 import queue
 import shutil
 import subprocess
 import threading
 import tkinter as tk
 import time
+import urllib.error
+import urllib.request
 from pathlib import Path
 from tkinter import messagebox, ttk
 
@@ -34,6 +37,10 @@ PALETTE = {
 APP_VERSION = "2.1"
 APP_VERSION_NPM = "2.1.0"
 NPM_PACKAGE_NAME = "claw-code-ubuntu-desktopui"
+GITHUB_REPO = "zillafan80-Maxzilla/claw-code-ubuntu-desktopUI"
+GITHUB_RAW_PACKAGE_JSON = f"https://raw.githubusercontent.com/{GITHUB_REPO}/main/package.json"
+GITHUB_RELEASES_API = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
+GITHUB_TAG_ARCHIVE = f"https://github.com/{GITHUB_REPO}/archive/refs/tags/{{tag}}.tar.gz"
 SUPPORTED_LOCALES = ("en", "ja", "ko", "zh")
 LANGUAGE_LABELS = {
     "en": "English",
@@ -70,7 +77,7 @@ I18N = {
         "help_commands": "Command Help",
         "help_update": "Update Desktop Components",
         "help_tooling": "Tool Calling Adapter Notes",
-        "help_version": "Current Version {version}",
+        "help_version": "Current Version: {version}",
         "session_new": "New Session",
         "session_save": "Save Session Now",
         "session_open": "Open Selected Session",
@@ -136,7 +143,7 @@ I18N = {
         "status_denied": "Request rejected",
         "status_cleared": "Chat cleared",
         "status_update_running": "Update task running",
-        "status_update_done": "Update completed. Restart pending",
+        "status_update_done": "Update completed. Restarting",
         "status_update_failed": "Update failed",
         "status_shutdown": "Stopping managed processes",
         "busy_count": "{count} running",
@@ -153,19 +160,19 @@ I18N = {
         "no_output": "The command completed without output.",
         "tool_help_title": "Tool Calling Adapter",
         "tool_help_message": "Automatic adaptation prefers the Gemma JSON prompt adapter for Gemma models on OpenAI-compatible backends. Other models keep native tools.\n\nNative Tool Protocol uses provider-native tool_calls.\n\nGemma JSON Prompt Adapter injects tool definitions into the prompt, asks the model for JSON, then lets the CLI parse and execute tools.",
-        "version_info_title": "Version Info",
-        "version_info_message": "Claw Code Ubuntu Desktop UI\nCurrent version: {version}\nUpdate channel: npm / GitHub Release",
+        "version_info_title": "Current Version",
+        "version_info_message": "Claw Code Ubuntu Desktop UI\nCurrent version: {version}\nLatest available: {latest}\nUpdate channel: GitHub Repository",
         "update_confirm_title": "Update Desktop Components",
-        "update_confirm_message": "The app will install the latest npm release and redeploy desktop components into the current claw-code root.\n\nRestarting the window after update is recommended. Continue?",
+        "update_confirm_message": "The app will install the latest GitHub repository package, redeploy desktop components into the current claw-code root, then restart automatically.\n\nContinue?",
         "update_task_title": "Update Task",
-        "update_task_body": "Checking for the latest published package and redeploying the current desktop components.",
+        "update_task_body": "Checking the latest GitHub repository version and redeploying the current desktop components.",
         "update_success_title": "Update Completed",
-        "update_success_body": "{details}\n\nClose and reopen the desktop window to load the latest version.",
+        "update_success_body": "{details}\n\nThe desktop window will now restart automatically.",
         "update_error_title": "Update Failed",
         "update_error_body": "The update failed and returned no details.",
         "update_missing_npm": "npm was not found. Automatic update cannot continue.",
         "update_prompt_title": "Update Available",
-        "update_prompt_body": "A newer desktop package is available.\n\nCurrent version: {current}\nLatest version: {latest}\n\nDo you want to update now?",
+        "update_prompt_body": "A newer desktop package is available in the GitHub repository.\n\nCurrent version: {current}\nLatest version: {latest}\n\nDo you want to update now?",
         "language_changed_title": "Language",
         "language_changed_body": "Language switched to {language}.",
         "config_error_title": "Configuration Error",
@@ -204,7 +211,7 @@ I18N = {
         "help_commands": "コマンドヘルプ",
         "help_update": "デスクトップコンポーネントを更新",
         "help_tooling": "ツール呼び出し適応の説明",
-        "help_version": "現在のバージョン {version}",
+        "help_version": "現在のバージョン: {version}",
         "session_new": "新しいセッション",
         "session_save": "今のセッションを保存",
         "session_open": "選択中のセッションを開く",
@@ -270,7 +277,7 @@ I18N = {
         "status_denied": "リクエストは拒否されました",
         "status_cleared": "会話をクリアしました",
         "status_update_running": "更新タスクを実行中",
-        "status_update_done": "更新完了。再起動待ち",
+        "status_update_done": "更新完了。再起動中",
         "status_update_failed": "更新に失敗しました",
         "status_shutdown": "管理中プロセスを停止中",
         "busy_count": "{count} 件実行中",
@@ -287,19 +294,19 @@ I18N = {
         "no_output": "コマンドは完了しましたが出力はありませんでした。",
         "tool_help_title": "ツール呼び出し適応",
         "tool_help_message": "自動適応では、OpenAI 互換バックエンド上の Gemma に対して Gemma JSON プロンプト適応を優先します。他のモデルはネイティブ tools を維持します。\n\nネイティブツールプロトコルは provider-native tool_calls を使用します。\n\nGemma JSON プロンプト適応では、ツール定義をプロンプトへ注入し、モデルに JSON を返させ、CLI がそれを解析してツールを実行します。",
-        "version_info_title": "バージョン情報",
-        "version_info_message": "Claw Code Ubuntu Desktop UI\n現在のバージョン: {version}\n更新チャネル: npm / GitHub Release",
+        "version_info_title": "現在のバージョン",
+        "version_info_message": "Claw Code Ubuntu Desktop UI\n現在のバージョン: {version}\n利用可能な最新: {latest}\n更新チャネル: GitHub リポジトリ",
         "update_confirm_title": "デスクトップコンポーネントを更新",
-        "update_confirm_message": "npm の最新リリースをインストールし、現在の claw-code ルートにデスクトップコンポーネントを再配置します。\n\n更新後はウィンドウの再起動を推奨します。続行しますか？",
+        "update_confirm_message": "GitHub リポジトリの最新版をインストールし、現在の claw-code ルートにデスクトップコンポーネントを再配置した後、自動で再起動します。\n\n続行しますか？",
         "update_task_title": "更新タスク",
-        "update_task_body": "最新の公開パッケージを確認し、現在のデスクトップコンポーネントを再配置しています。",
+        "update_task_body": "GitHub リポジトリの最新版を確認し、現在のデスクトップコンポーネントを再配置しています。",
         "update_success_title": "更新完了",
-        "update_success_body": "{details}\n\n最新バージョンを読み込むにはデスクトップウィンドウを閉じて再度開いてください。",
+        "update_success_body": "{details}\n\nデスクトップウィンドウを自動で再起動します。",
         "update_error_title": "更新失敗",
         "update_error_body": "更新に失敗しました。詳細は返されませんでした。",
         "update_missing_npm": "npm が見つかりません。自動更新を続行できません。",
         "update_prompt_title": "更新があります",
-        "update_prompt_body": "新しいデスクトップパッケージが利用可能です。\n\n現在のバージョン: {current}\n最新バージョン: {latest}\n\n今すぐ更新しますか？",
+        "update_prompt_body": "GitHub リポジトリに新しいデスクトップパッケージがあります。\n\n現在のバージョン: {current}\n最新バージョン: {latest}\n\n今すぐ更新しますか？",
         "language_changed_title": "言語",
         "language_changed_body": "{language} に切り替えました。",
         "config_error_title": "設定エラー",
@@ -338,7 +345,7 @@ I18N = {
         "help_commands": "명령 도움말",
         "help_update": "데스크톱 구성요소 업데이트",
         "help_tooling": "도구 호출 적응 안내",
-        "help_version": "현재 버전 {version}",
+        "help_version": "현재 버전: {version}",
         "session_new": "새 세션",
         "session_save": "현재 세션 저장",
         "session_open": "선택한 세션 열기",
@@ -404,7 +411,7 @@ I18N = {
         "status_denied": "요청이 거부되었습니다",
         "status_cleared": "대화 영역을 비웠습니다",
         "status_update_running": "업데이트 작업 실행 중",
-        "status_update_done": "업데이트 완료, 재시작 대기",
+        "status_update_done": "업데이트 완료, 재시작 중",
         "status_update_failed": "업데이트 실패",
         "status_shutdown": "관리 중인 프로세스 정리 중",
         "busy_count": "{count}개 실행 중",
@@ -421,19 +428,19 @@ I18N = {
         "no_output": "명령은 완료되었지만 출력이 없습니다.",
         "tool_help_title": "도구 호출 적응",
         "tool_help_message": "자동 적응은 OpenAI 호환 백엔드의 Gemma 모델에 대해 Gemma JSON 프롬프트 어댑터를 우선 사용합니다. 다른 모델은 기본 tools를 유지합니다.\n\n기본 도구 프로토콜은 provider-native tool_calls를 사용합니다.\n\nGemma JSON 프롬프트 어댑터는 도구 정의를 프롬프트에 주입하고 모델이 JSON을 반환하도록 한 뒤 CLI가 이를 해석해 도구를 실행합니다.",
-        "version_info_title": "버전 정보",
-        "version_info_message": "Claw Code Ubuntu Desktop UI\n현재 버전: {version}\n업데이트 채널: npm / GitHub Release",
+        "version_info_title": "현재 버전",
+        "version_info_message": "Claw Code Ubuntu Desktop UI\n현재 버전: {version}\n사용 가능한 최신 버전: {latest}\n업데이트 채널: GitHub 저장소",
         "update_confirm_title": "데스크톱 구성요소 업데이트",
-        "update_confirm_message": "npm 최신 릴리스를 설치하고 현재 claw-code 루트에 데스크톱 구성요소를 다시 배포합니다.\n\n업데이트 후 창을 다시 시작하는 것이 좋습니다. 계속하시겠습니까?",
+        "update_confirm_message": "GitHub 저장소의 최신판을 설치하고 현재 claw-code 루트에 데스크톱 구성요소를 다시 배포한 뒤 자동으로 재시작합니다.\n\n계속하시겠습니까?",
         "update_task_title": "업데이트 작업",
-        "update_task_body": "최신 공개 패키지를 확인하고 현재 데스크톱 구성요소를 다시 배포하고 있습니다.",
+        "update_task_body": "GitHub 저장소의 최신판을 확인하고 현재 데스크톱 구성요소를 다시 배포하고 있습니다.",
         "update_success_title": "업데이트 완료",
-        "update_success_body": "{details}\n\n최신 버전을 불러오려면 데스크톱 창을 닫았다가 다시 여십시오.",
+        "update_success_body": "{details}\n\n데스크톱 창을 자동으로 재시작합니다.",
         "update_error_title": "업데이트 실패",
         "update_error_body": "업데이트가 실패했고 상세 정보가 없습니다.",
         "update_missing_npm": "npm을 찾을 수 없습니다. 자동 업데이트를 계속할 수 없습니다.",
         "update_prompt_title": "업데이트 가능",
-        "update_prompt_body": "새 데스크톱 패키지가 उपलब्ध합니다.\n\n현재 버전: {current}\n최신 버전: {latest}\n\n지금 업데이트하시겠습니까?",
+        "update_prompt_body": "GitHub 저장소에 새 데스크톱 패키지가 있습니다.\n\n현재 버전: {current}\n최신 버전: {latest}\n\n지금 업데이트하시겠습니까?",
         "language_changed_title": "언어",
         "language_changed_body": "{language}(으)로 전환했습니다.",
         "config_error_title": "설정 오류",
@@ -472,7 +479,7 @@ I18N = {
         "help_commands": "命令帮助",
         "help_update": "更新桌面组件",
         "help_tooling": "关于工具调用适配",
-        "help_version": "当前版本 {version}",
+        "help_version": "当前版本号：{version}",
         "session_new": "新建会话",
         "session_save": "立即保存当前会话",
         "session_open": "打开所选会话",
@@ -538,7 +545,7 @@ I18N = {
         "status_denied": "请求被拒绝",
         "status_cleared": "对话区已清空",
         "status_update_running": "更新任务执行中",
-        "status_update_done": "更新完成，等待重启",
+        "status_update_done": "更新完成，正在重启",
         "status_update_failed": "更新失败",
         "status_shutdown": "正在停止托管进程",
         "busy_count": "{count} 个运行中",
@@ -555,19 +562,19 @@ I18N = {
         "no_output": "命令已完成，但没有输出内容。",
         "tool_help_title": "工具调用适配说明",
         "tool_help_message": "自动适配：Gemma + OpenAI 兼容后端时，优先启用 Gemma JSON 提示适配；其他模型保留原生 tools。\n\n原生工具协议：直接使用 provider-native tools/tool_calls。\n\nGemma JSON 提示适配：把工具定义注入系统提示词，要求模型返回 JSON 对象，再由 CLI 回解析并执行工具。",
-        "version_info_title": "版本信息",
-        "version_info_message": "Claw Code Ubuntu Desktop UI\n当前版本：{version}\n更新通道：npm / GitHub Release",
+        "version_info_title": "当前版本号",
+        "version_info_message": "Claw Code Ubuntu Desktop UI\n当前版本：{version}\n可用最新版本：{latest}\n更新通道：GitHub 仓库",
         "update_confirm_title": "更新桌面组件",
-        "update_confirm_message": "将通过 npm 安装最新发布版，并把桌面组件重新部署到当前 claw-code 根目录。\n\n更新完成后建议重启桌面窗口。是否继续？",
+        "update_confirm_message": "将安装 GitHub 仓库中的最新版本，并把桌面组件重新部署到当前 claw-code 根目录，完成后自动重启窗口。\n\n是否继续？",
         "update_task_title": "更新任务",
-        "update_task_body": "已开始检查最新发布包，并重新部署当前桌面组件。",
+        "update_task_body": "已开始检查 GitHub 仓库中的最新版本，并重新部署当前桌面组件。",
         "update_success_title": "更新完成",
-        "update_success_body": "{details}\n\n请关闭并重新打开桌面窗口，以加载最新版本。",
+        "update_success_body": "{details}\n\n桌面窗口即将自动重启以加载最新版本。",
         "update_error_title": "更新失败",
         "update_error_body": "更新失败，未返回详细信息。",
         "update_missing_npm": "未找到 npm，无法执行自动更新。",
         "update_prompt_title": "发现更新",
-        "update_prompt_body": "检测到新的桌面安装包。\n\n当前版本：{current}\n最新版本：{latest}\n\n是否现在更新？",
+        "update_prompt_body": "检测到 GitHub 仓库有新的桌面安装包。\n\n当前版本：{current}\n最新版本：{latest}\n\n是否现在更新？",
         "language_changed_title": "语言",
         "language_changed_body": "界面语言已切换为 {language}。",
         "config_error_title": "配置错误",
@@ -1429,9 +1436,10 @@ class MainWindow(tk.Tk):
         self.chat.insert_prompt(prompt, replace=False)
 
     def _show_version_info(self) -> None:
+        latest = self.latest_known_version or APP_VERSION
         messagebox.showinfo(
             self._t("version_info_title"),
-            self._t("version_info_message", version=APP_VERSION),
+            self._t("version_info_message", version=APP_VERSION, latest=latest),
         )
 
     def _run_update(self) -> None:
@@ -1459,8 +1467,10 @@ class MainWindow(tk.Tk):
             return
 
         try:
+            self.latest_known_version = self.latest_known_version or self._fetch_latest_github_version()
+            target = f"github:{GITHUB_REPO}"
             install_proc = subprocess.run(
-                [npm_bin, "install", "-g", f"{NPM_PACKAGE_NAME}@latest"],
+                [npm_bin, "install", "-g", target],
                 cwd=self.project_root.parent,
                 text=True,
                 capture_output=True,
@@ -1543,27 +1553,17 @@ class MainWindow(tk.Tk):
         threading.Thread(target=self._run_update_probe_job, daemon=True).start()
 
     def _run_update_probe_job(self) -> None:
-        npm_bin = shutil.which("npm")
-        if npm_bin is None:
-            return
         started_at = time.time()
         try:
-            probe = subprocess.run(
-                [npm_bin, "view", NPM_PACKAGE_NAME, "version"],
-                cwd=self.project_root.parent,
-                text=True,
-                capture_output=True,
-                check=False,
-            )
-            if probe.returncode != 0:
+            latest = self._fetch_latest_github_version()
+            if not latest:
                 return
-            latest = probe.stdout.strip()
             if not latest or self._version_tuple(latest) <= self._version_tuple(APP_VERSION_NPM):
                 return
             self.results.put(
                 CommandResult(
                     request_text="__update_probe__",
-                    argv=list(probe.args),
+                    argv=["github-release", latest],
                     exit_code=0,
                     stdout=latest,
                     stderr="",
@@ -1571,8 +1571,35 @@ class MainWindow(tk.Tk):
                     finished_at=time.time(),
                 )
             )
-        except Exception:
+        except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, OSError):
             return
+
+    def _fetch_latest_github_version(self) -> str | None:
+        raw_request = urllib.request.Request(
+            GITHUB_RAW_PACKAGE_JSON,
+            headers={"User-Agent": f"{NPM_PACKAGE_NAME}/{APP_VERSION_NPM}"},
+        )
+        try:
+            with urllib.request.urlopen(raw_request, timeout=10) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+            latest = str(payload.get("version") or "").strip()
+            if latest:
+                return latest
+        except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, OSError):
+            pass
+
+        request = urllib.request.Request(
+            GITHUB_RELEASES_API,
+            headers={
+                "Accept": "application/vnd.github+json",
+                "User-Agent": f"{NPM_PACKAGE_NAME}/{APP_VERSION_NPM}",
+            },
+        )
+        with urllib.request.urlopen(request, timeout=10) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+        tag_name = str(payload.get("tag_name") or "").strip()
+        latest = tag_name.lstrip("v")
+        return latest or None
 
     def _submit_request(self, text: str) -> None:
         request = text.strip()
@@ -1740,6 +1767,7 @@ class MainWindow(tk.Tk):
                 title=self._t("update_success_title"),
             )
             self.status_var.set(self._t("status_update_done"))
+            self.after(500, self._restart_window)
             return
         self._chat_add(
             result.stderr or result.stdout or self._t("update_error_body"),
@@ -1759,6 +1787,19 @@ class MainWindow(tk.Tk):
             self._t("update_prompt_body", current=APP_VERSION, latest=latest),
         ):
             self._run_update()
+
+    def _restart_window(self) -> None:
+        launcher = self.project_root / "scripts" / "launcher.sh"
+        try:
+            subprocess.Popen(
+                [str(launcher)],
+                cwd=self.project_root,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                start_new_session=True,
+            )
+        finally:
+            self.after(150, self.destroy)
 
     def _tick_pending_message(self, request: str) -> None:
         pending_queue = self.pending_messages.get(request)
