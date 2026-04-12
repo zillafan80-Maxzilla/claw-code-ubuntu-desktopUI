@@ -1,6 +1,6 @@
 # claw-code-ubuntu-desktopUI
 
-当前发布版本 / Current release: `v1.6`
+当前发布版本 / Current release: `v2.0`
 
 ## 中文说明
 
@@ -26,6 +26,10 @@
 - 会显示思考状态、工具执行状态和完成状态，更贴近 CLI 终端体验
 - 新增 UI 原生历史会话模块，支持自动保存、查看、加载、压缩和删除
 - 历史会话保存到桌面 UI 配置目录，不依赖 CLI 会话管理入口
+- 对话消息现在支持正文选择复制、右键复制和消息级一键复制
+- 执行控制拆分为“系统级高权限”和“自动执行”两个独立选项
+- 系统级高权限映射到真实 `danger-full-access` 权限模式，自动执行负责无确认地持续完成任务
+- 桌面桥接新增失败自动兜底执行，避免把伪 tool_call 半成品写入历史会话
 - 模型摘要与模型配置面板
 - 右侧控制栏可滚动
 - 自动进程托管与退出清理
@@ -71,7 +75,7 @@ claw-code-ubuntu-desktopui-install
 7. 自动创建 `~/Desktop/claw-code.desktop` 快捷方式。
 8. 若未找到 `claw-code`，则提示是否安装本地版本。
 9. 已安装后，可在桌面窗口中使用“帮助 > 更新桌面组件”直接拉取最新发布版并重新部署。
-10. 自 `1.2` 起的用户打开桌面窗口后，会自动检查是否存在更新；如发现 `1.6` 或更高版本，会弹出更新提示并可直接执行升级。
+10. 自 `1.2` 起的用户打开桌面窗口后，会自动检查是否存在更新；如发现 `2.0` 或更高版本，会弹出更新提示并可直接执行升级。
 
 ### 默认探测的模型接口
 
@@ -151,6 +155,10 @@ Current UI capabilities include:
 - Thinking state, tool execution state, and completion state are shown during the run to stay closer to the CLI experience
 - Added a UI-native session history module with automatic save, browse, load, compact, and delete actions
 - Session history is stored in the desktop UI configuration area and does not depend on the CLI session management entry points
+- Chat messages now support text selection, right-click copy, and one-click copy per message
+- Execution control is split into independent System-Level High Privilege and Autonomous Execution options
+- System-Level High Privilege maps to the real `danger-full-access` permission mode, while Autonomous Execution controls no-confirmation task completion
+- The desktop bridge now retries with a structured fallback path to avoid persisting raw pseudo tool-call stubs
 - Model summary and model configuration panel
 - Scrollable right control sidebar
 - Managed process lifecycle and cleanup on exit
@@ -196,7 +204,7 @@ The installer performs the following steps:
 7. Create `~/Desktop/claw-code.desktop`.
 8. If `claw-code` is not found, prompt to install a local bundled version.
 9. After installation, the desktop window can self-update through `Help > Update Desktop Components`.
-10. Users coming from `1.2` will see an upgrade prompt on startup when `1.6` or newer is available, and can update in place.
+10. Users coming from `1.2` will see an upgrade prompt on startup when `2.0` or newer is available, and can update in place.
 
 ### Probed model endpoints
 

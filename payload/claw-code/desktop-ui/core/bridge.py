@@ -60,15 +60,19 @@ class ClawBridge:
         self.settings_store = settings_store
         self.claw_bin = self.project_root.parent / "bin" / "claw"
         self.base_env = dict(os.environ)
-        self.is_autopilot = False
         self.history: list[str] = []
         self.conversation: list[tuple[str, str]] = []
         self._lock = threading.Lock()
         self._active: dict[int, subprocess.Popen[str]] = {}
 
-    def set_autopilot(self, enabled: bool) -> str:
-        self.is_autopilot = enabled
-        return "高权限自动执行已开启" if enabled else "已恢复安全权限模式"
+    def set_execution_controls(self, high_privilege: bool, autonomous_execution: bool) -> str:
+        if high_privilege and autonomous_execution:
+            return "已启用系统级高权限，并允许自动连续执行"
+        if high_privilege:
+            return "已启用系统级高权限"
+        if autonomous_execution:
+            return "已启用自动连续执行"
+        return "已恢复常规执行模式"
 
     def active_process_count(self) -> int:
         with self._lock:
@@ -151,7 +155,9 @@ class ClawBridge:
             "--model",
             settings.model,
         ]
-        if self.is_autopilot:
+        if settings.high_privilege:
+            argv.extend(["--permission-mode", "danger-full-access"])
+        if settings.autonomous_execution:
             argv.append("--dangerously-skip-permissions")
         argv.extend(["prompt", effective_prompt])
         return argv

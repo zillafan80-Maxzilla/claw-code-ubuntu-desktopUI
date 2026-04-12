@@ -32,7 +32,7 @@ class ChatWidget(ttk.Frame):
         self._clear_callback = None
         self._chip_callback = None
         self._message_seq = 0
-        self._message_widgets: dict[int, tuple[tk.Frame, tk.Label | None, tk.Label, tk.Label | None]] = {}
+        self._message_widgets: dict[int, tuple[tk.Frame, tk.Label | None, tk.Text, tk.Label | None, tk.Button | None]] = {}
         self._send_button: ttk.Button | None = None
         self._retry_button: ttk.Button | None = None
         self._copy_button: ttk.Button | None = None
@@ -283,16 +283,38 @@ class ChatWidget(ttk.Frame):
 
         header_widget = None
         meta_widget = None
+        copy_button = None
+        if title:
+            header_row = tk.Frame(card, background=background)
+            header_row.pack(fill="x", anchor="w")
+        else:
+            header_row = None
         if title:
             header_widget = tk.Label(
-                card,
+                header_row,
                 text=title,
                 background=background,
                 foreground=foreground,
                 font=("Noto Sans CJK SC", 8, "bold"),
                 anchor="w",
             )
-            header_widget.pack(anchor="w")
+            header_widget.pack(side="left", anchor="w")
+            copy_button = tk.Button(
+                header_row,
+                text="Copy",
+                command=lambda value=text: self._copy_message_text(value),
+                background=background,
+                foreground=PALETTE["base00"],
+                activebackground=background,
+                activeforeground=foreground,
+                borderwidth=0,
+                highlightthickness=0,
+                padx=6,
+                pady=0,
+                font=("DejaVu Sans Mono", 7),
+                cursor="hand2",
+            )
+            copy_button.pack(side="right", anchor="e")
             meta_widget = tk.Label(
                 card,
                 text=time.strftime("%H:%M:%S"),
@@ -303,20 +325,29 @@ class ChatWidget(ttk.Frame):
             )
             meta_widget.pack(anchor="w", pady=(2, 6))
 
-        body = tk.Label(
+        body = tk.Text(
             card,
-            text=text,
             background=background,
             foreground=foreground,
-            justify="left",
-            wraplength=940,
+            wrap="word",
             font=("Noto Sans CJK SC", 10),
-            anchor="w",
+            relief="flat",
+            borderwidth=0,
+            highlightthickness=0,
+            padx=0,
+            pady=0,
+            height=max(1, min(text.count("\n") + 1, 20)),
+            cursor="xterm",
+            insertbackground=foreground,
         )
-        body.pack(anchor="w")
+        body.insert("1.0", text)
+        body.configure(state="disabled")
+        body.pack(anchor="w", fill="x")
+        body.bind("<Control-c>", lambda _event, widget=body: self._copy_from_text_widget(widget))
+        body.bind("<Button-3>", lambda event, value=text: self._show_copy_menu(event, value))
 
         self._message_seq += 1
-        self._message_widgets[self._message_seq] = (outer, header_widget, body, meta_widget)
+        self._message_widgets[self._message_seq] = (outer, header_widget, body, meta_widget, copy_button)
         self.after_idle(self._scroll_to_bottom)
         return self._message_seq
 
@@ -324,19 +355,25 @@ class ChatWidget(ttk.Frame):
         widgets = self._message_widgets.get(message_id)
         if widgets is None:
             return
-        _outer, header, body, meta = widgets
-        body.configure(text=text)
+        _outer, header, body, meta, copy_button = widgets
+        body.configure(state="normal")
+        body.delete("1.0", "end")
+        body.insert("1.0", text)
+        body.configure(height=max(1, min(text.count("\n") + 1, 20)))
+        body.configure(state="disabled")
         if header is not None and title is not None:
             header.configure(text=title)
         if meta is not None:
             meta.configure(text=time.strftime("%H:%M:%S"))
+        if copy_button is not None:
+            copy_button.configure(command=lambda value=text: self._copy_message_text(value))
         self.after_idle(self._scroll_to_bottom)
 
     def remove_message(self, message_id: int) -> None:
         widgets = self._message_widgets.pop(message_id, None)
         if widgets is None:
             return
-        outer, _header, _body, _meta = widgets
+        outer, _header, _body, _meta, _copy = widgets
         outer.destroy()
 
     def clear(self) -> None:
@@ -388,3 +425,24 @@ class ChatWidget(ttk.Frame):
     def _scroll_to_bottom(self) -> None:
         self.canvas.update_idletasks()
         self.canvas.yview_moveto(1.0)
+
+    def _copy_message_text(self, text: str) -> None:
+        self.clipboard_clear()
+        self.clipboard_append(text)
+        self.update()
+
+    def _copy_from_text_widget(self, widget: tk.Text) -> str:
+        try:
+            selected = widget.get("sel.first", "sel.last")
+        except tk.TclError:
+            selected = widget.get("1.0", "end").strip()
+        if selected:
+            self._copy_message_text(selected)
+        return "break"
+
+    def _show_copy_menu(self, event, text: str) -> str:
+        menu = tk.Menu(self, tearoff=False)
+        menu.add_command(label="Copy", command=lambda value=text: self._copy_message_text(value))
+        menu.tk_popup(event.x_root, event.y_root)
+        menu.grab_release()
+        return "break"

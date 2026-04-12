@@ -31,8 +31,8 @@ PALETTE = {
     "magenta": "#d33682",
 }
 
-APP_VERSION = "1.6"
-APP_VERSION_NPM = "1.6.0"
+APP_VERSION = "2.0"
+APP_VERSION_NPM = "2.0.0"
 NPM_PACKAGE_NAME = "claw-code-ubuntu-desktopui"
 SUPPORTED_LOCALES = ("en", "ja", "ko", "zh")
 LANGUAGE_LABELS = {
@@ -98,7 +98,8 @@ I18N = {
         "runtime_panel": "Status And Execution",
         "status_label": "System Status",
         "process_count_label": "Managed Processes",
-        "autopilot": "Enable Danger Full Access Auto Execution",
+        "high_privilege": "Enable System-Level High Privilege",
+        "autonomous_execution": "Enable Autonomous Execution",
         "config_panel": "Model And API Configuration",
         "config_model": "Model Name",
         "config_base_url": "Base URL",
@@ -164,7 +165,7 @@ I18N = {
         "config_error_model": "Model name cannot be empty.",
         "config_error_base_url": "Base URL must start with http:// or https://.",
         "config_error_tool_style": "Tool adapter must be auto, native, or gemma-json.",
-        "settings_saved_message": "Model settings saved.\nModel: {model}\nEndpoint: {base_url}\nTool adapter: {tool_style}\nLanguage: {language}",
+        "settings_saved_message": "Model settings saved.\nModel: {model}\nEndpoint: {base_url}\nTool adapter: {tool_style}\nLanguage: {language}\nHigh privilege: {high_privilege}\nAutonomous execution: {autonomous_execution}",
         "settings_saved_title": "Configuration Applied",
         "cleanup_error_title": "Cleanup Error",
         "cleanup_error_body": "An error occurred while cleaning processes:\n{error}\n\nClose anyway?",
@@ -224,7 +225,8 @@ I18N = {
         "runtime_panel": "状態と実行",
         "status_label": "システム状態",
         "process_count_label": "管理中プロセス",
-        "autopilot": "危険な自動実行を有効化",
+        "high_privilege": "システム級高権限を有効化",
+        "autonomous_execution": "自律実行を有効化",
         "config_panel": "モデルと API 設定",
         "config_model": "モデル名",
         "config_base_url": "ベース URL",
@@ -290,7 +292,7 @@ I18N = {
         "config_error_model": "モデル名は空にできません。",
         "config_error_base_url": "ベース URL は http:// または https:// で始まる必要があります。",
         "config_error_tool_style": "ツール適応は auto、native、gemma-json のいずれかである必要があります。",
-        "settings_saved_message": "モデル設定を保存しました。\nモデル: {model}\nエンドポイント: {base_url}\nツール適応: {tool_style}\n言語: {language}",
+        "settings_saved_message": "モデル設定を保存しました。\nモデル: {model}\nエンドポイント: {base_url}\nツール適応: {tool_style}\n言語: {language}\n高権限: {high_privilege}\n自律実行: {autonomous_execution}",
         "settings_saved_title": "設定を適用しました",
         "cleanup_error_title": "クリーンアップエラー",
         "cleanup_error_body": "プロセスのクリーンアップ中にエラーが発生しました:\n{error}\n\nそれでも閉じますか？",
@@ -350,7 +352,8 @@ I18N = {
         "runtime_panel": "상태 및 실행",
         "status_label": "시스템 상태",
         "process_count_label": "관리 중인 프로세스",
-        "autopilot": "위험한 자동 실행 활성화",
+        "high_privilege": "시스템 수준 고권한 활성화",
+        "autonomous_execution": "자율 실행 활성화",
         "config_panel": "모델 및 API 설정",
         "config_model": "모델 이름",
         "config_base_url": "기본 URL",
@@ -416,7 +419,7 @@ I18N = {
         "config_error_model": "모델 이름은 비워 둘 수 없습니다.",
         "config_error_base_url": "기본 URL은 http:// 또는 https:// 로 시작해야 합니다.",
         "config_error_tool_style": "도구 적응은 auto, native, gemma-json 중 하나여야 합니다.",
-        "settings_saved_message": "모델 설정이 저장되었습니다.\n모델: {model}\n엔드포인트: {base_url}\n도구 적응: {tool_style}\n언어: {language}",
+        "settings_saved_message": "모델 설정이 저장되었습니다.\n모델: {model}\n엔드포인트: {base_url}\n도구 적응: {tool_style}\n언어: {language}\n고권한: {high_privilege}\n자율 실행: {autonomous_execution}",
         "settings_saved_title": "설정 적용됨",
         "cleanup_error_title": "정리 오류",
         "cleanup_error_body": "프로세스 정리 중 오류가 발생했습니다:\n{error}\n\n그래도 종료하시겠습니까?",
@@ -476,7 +479,8 @@ I18N = {
         "runtime_panel": "状态与执行",
         "status_label": "系统状态",
         "process_count_label": "托管进程",
-        "autopilot": "启用高权限自动执行（danger-full-access）",
+        "high_privilege": "启用系统级高权限",
+        "autonomous_execution": "启用自动执行",
         "config_panel": "模型与接口配置",
         "config_model": "模型名称",
         "config_base_url": "接口基址",
@@ -542,7 +546,7 @@ I18N = {
         "config_error_model": "模型名称不能为空。",
         "config_error_base_url": "接口基址必须以 http:// 或 https:// 开头。",
         "config_error_tool_style": "工具适配模式只能是 auto、native 或 gemma-json。",
-        "settings_saved_message": "模型配置已保存。\n模型：{model}\n接口：{base_url}\n工具适配：{tool_style}\n语言：{language}",
+        "settings_saved_message": "模型配置已保存。\n模型：{model}\n接口：{base_url}\n工具适配：{tool_style}\n语言：{language}\n高权限：{high_privilege}\n自动执行：{autonomous_execution}",
         "settings_saved_title": "配置已应用",
         "cleanup_error_title": "清理异常",
         "cleanup_error_body": "清理进程时发生异常：\n{error}\n\n仍要关闭吗？",
@@ -577,7 +581,8 @@ class MainWindow(tk.Tk):
         self.endpoint_var = tk.StringVar()
         self.tool_mode_var = tk.StringVar()
         self.session_var = tk.StringVar()
-        self.autopilot_var = tk.BooleanVar(value=False)
+        self.high_privilege_var = tk.BooleanVar(value=False)
+        self.autonomous_execution_var = tk.BooleanVar(value=False)
         self.model_entry_var = tk.StringVar()
         self.base_url_entry_var = tk.StringVar()
         self.api_key_entry_var = tk.StringVar()
@@ -818,10 +823,16 @@ class MainWindow(tk.Tk):
         ttk.Label(runtime_panel, textvariable=self.active_var, style="Value.TLabel").grid(row=3, column=0, sticky="w")
         ttk.Checkbutton(
             runtime_panel,
-            text=self._t("autopilot"),
-            variable=self.autopilot_var,
-            command=self._toggle_autopilot,
+            text=self._t("high_privilege"),
+            variable=self.high_privilege_var,
+            command=self._toggle_execution_controls,
         ).grid(row=4, column=0, sticky="w", pady=(10, 0))
+        ttk.Checkbutton(
+            runtime_panel,
+            text=self._t("autonomous_execution"),
+            variable=self.autonomous_execution_var,
+            command=self._toggle_execution_controls,
+        ).grid(row=5, column=0, sticky="w", pady=(6, 0))
 
         config_panel = ttk.LabelFrame(sidebar, text=self._t("config_panel"), style="Panel.TLabelframe", padding=12)
         config_panel.grid(row=2, column=0, sticky="ew", pady=(0, 10))
@@ -1215,6 +1226,8 @@ class MainWindow(tk.Tk):
         self.base_url_entry_var.set(settings.base_url)
         self.api_key_entry_var.set(settings.api_key)
         self.tool_style_entry_var.set(settings.tool_call_style)
+        self.high_privilege_var.set(settings.high_privilege)
+        self.autonomous_execution_var.set(settings.autonomous_execution)
         self._refresh_model_summary(settings)
         self._refresh_session_summary()
         self.active_var.set(self._t("busy_count", count=self.bridge.active_process_count()))
@@ -1235,6 +1248,8 @@ class MainWindow(tk.Tk):
             api_key=self.api_key_entry_var.get().strip() or stored.api_key,
             tool_call_style=self.tool_style_entry_var.get().strip() or stored.tool_call_style,
             locale=self.current_locale,
+            high_privilege=self.high_privilege_var.get(),
+            autonomous_execution=self.autonomous_execution_var.get(),
         )
 
     def _save_settings(self) -> None:
@@ -1259,6 +1274,8 @@ class MainWindow(tk.Tk):
             api_key=api_key,
             tool_call_style=tool_style,
             locale=self.current_locale,
+            high_privilege=self.high_privilege_var.get(),
+            autonomous_execution=self.autonomous_execution_var.get(),
         )
         self.settings_store.save(settings)
         self._refresh_model_summary(settings)
@@ -1269,6 +1286,8 @@ class MainWindow(tk.Tk):
                 base_url=settings.base_url,
                 tool_style=settings.tool_style_label(self.current_locale),
                 language=LANGUAGE_LABELS[self.current_locale],
+                high_privilege="on" if settings.high_privilege else "off",
+                autonomous_execution="on" if settings.autonomous_execution else "off",
             ),
             role="system",
             title=self._t("settings_saved_title"),
@@ -1501,8 +1520,13 @@ class MainWindow(tk.Tk):
             self._chat_add(str(exc), role="error", title=self._t("validation_title"))
             self.status_var.set(self._t("status_denied"))
 
-    def _toggle_autopilot(self) -> None:
-        state = self.bridge.set_autopilot(self.autopilot_var.get())
+    def _toggle_execution_controls(self) -> None:
+        settings = self._current_form_settings()
+        self.settings_store.save(settings)
+        state = self.bridge.set_execution_controls(
+            self.high_privilege_var.get(),
+            self.autonomous_execution_var.get(),
+        )
         self.status_var.set(state)
         self._chat_add(state, role="system", title=self._t("permission_mode_title"))
 

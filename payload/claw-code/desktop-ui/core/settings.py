@@ -13,6 +13,8 @@ class DesktopSettings:
     api_key: str = "local-dev-token"
     tool_call_style: str = "auto"
     locale: str = "en"
+    high_privilege: bool = False
+    autonomous_execution: bool = False
 
     def to_env(self) -> dict[str, str]:
         return {
@@ -21,6 +23,8 @@ class DesktopSettings:
             "CLAW_DESKTOP_MODEL": self.model.strip(),
             "CLAW_TOOL_CALL_STYLE": self.tool_call_style.strip(),
             "CLAW_DESKTOP_LOCALE": self.locale.strip() or "en",
+            "CLAW_DESKTOP_HIGH_PRIVILEGE": "1" if self.high_privilege else "0",
+            "CLAW_DESKTOP_AUTONOMOUS": "1" if self.autonomous_execution else "0",
         }
 
     def masked_api_key(self) -> str:
@@ -97,6 +101,8 @@ class DesktopSettingsStore:
                 "CLAW_TOOL_CALL_STYLE", DesktopSettings.tool_call_style
             ),
             locale=os.environ.get("CLAW_DESKTOP_LOCALE", DesktopSettings.locale),
+            high_privilege=os.environ.get("CLAW_DESKTOP_HIGH_PRIVILEGE", "0") in {"1", "true", "yes"},
+            autonomous_execution=os.environ.get("CLAW_DESKTOP_AUTONOMOUS", "0") in {"1", "true", "yes"},
         )
         if not self.path.exists():
             return defaults
@@ -110,6 +116,8 @@ class DesktopSettingsStore:
             api_key=str(payload.get("api_key") or defaults.api_key),
             tool_call_style=str(payload.get("tool_call_style") or defaults.tool_call_style),
             locale=str(payload.get("locale") or defaults.locale or "en"),
+            high_privilege=bool(payload.get("high_privilege", defaults.high_privilege)),
+            autonomous_execution=bool(payload.get("autonomous_execution", defaults.autonomous_execution)),
         )
 
     def save(self, settings: DesktopSettings) -> None:
