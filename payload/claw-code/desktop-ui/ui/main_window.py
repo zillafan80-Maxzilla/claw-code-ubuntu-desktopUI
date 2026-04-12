@@ -98,8 +98,13 @@ I18N = {
         "runtime_panel": "Status And Execution",
         "status_label": "System Status",
         "process_count_label": "Managed Processes",
-        "high_privilege": "Enable System-Level High Privilege",
+        "high_privilege": "Allow System Permissions",
         "autonomous_execution": "Enable Autonomous Execution",
+        "runstate_running": "Running",
+        "runstate_stopped": "Stopped",
+        "runstate_ended": "Ended",
+        "run_detail_title": "Run Details",
+        "run_detail_exit": "Exit code: {code}\nDuration: {seconds:.2f}s",
         "config_panel": "Model And API Configuration",
         "config_model": "Model Name",
         "config_base_url": "Base URL",
@@ -227,8 +232,13 @@ I18N = {
         "runtime_panel": "状態と実行",
         "status_label": "システム状態",
         "process_count_label": "管理中プロセス",
-        "high_privilege": "システム級高権限を有効化",
+        "high_privilege": "システム権限を許可",
         "autonomous_execution": "自律実行を有効化",
+        "runstate_running": "実行中",
+        "runstate_stopped": "停止",
+        "runstate_ended": "終了",
+        "run_detail_title": "実行詳細",
+        "run_detail_exit": "終了コード: {code}\n所要時間: {seconds:.2f}秒",
         "config_panel": "モデルと API 設定",
         "config_model": "モデル名",
         "config_base_url": "ベース URL",
@@ -356,8 +366,13 @@ I18N = {
         "runtime_panel": "상태 및 실행",
         "status_label": "시스템 상태",
         "process_count_label": "관리 중인 프로세스",
-        "high_privilege": "시스템 수준 고권한 활성화",
+        "high_privilege": "시스템 권한 허용",
         "autonomous_execution": "자율 실행 활성화",
+        "runstate_running": "실행 중",
+        "runstate_stopped": "중지",
+        "runstate_ended": "종료됨",
+        "run_detail_title": "실행 상세",
+        "run_detail_exit": "종료 코드: {code}\n소요 시간: {seconds:.2f}초",
         "config_panel": "모델 및 API 설정",
         "config_model": "모델 이름",
         "config_base_url": "기본 URL",
@@ -485,8 +500,13 @@ I18N = {
         "runtime_panel": "状态与执行",
         "status_label": "系统状态",
         "process_count_label": "托管进程",
-        "high_privilege": "启用系统级高权限",
+        "high_privilege": "允许系统权限",
         "autonomous_execution": "启用自动执行",
+        "runstate_running": "正在执行",
+        "runstate_stopped": "已停止",
+        "runstate_ended": "已结束",
+        "run_detail_title": "执行详情",
+        "run_detail_exit": "退出码：{code}\n耗时：{seconds:.2f} 秒",
         "config_panel": "模型与接口配置",
         "config_model": "模型名称",
         "config_base_url": "接口基址",
@@ -813,6 +833,7 @@ class MainWindow(tk.Tk):
             on_chip=self._insert_quick_prompt,
         )
         self.chat.set_ui_labels(self._chat_ui_labels())
+        self.chat.set_runtime_state("ended", self._t("runstate_ended"))
 
         sidebar_shell = ttk.Frame(root, style="Sidebar.TFrame")
         sidebar_shell.grid(row=0, column=1, sticky="nsew")
@@ -1003,6 +1024,9 @@ class MainWindow(tk.Tk):
                 "copy": "Copy Chat",
                 "stop": "Stop",
                 "clear": "Clear",
+                "running": "Running",
+                "stopped": "Stopped",
+                "ended": "Ended",
                 "chip_labels": ["Explain", "Continue", "Review", "Fix", "Status", "Doctor"],
                 "chip_values": [
                     "Explain the current issue clearly and propose the next concrete step.",
@@ -1023,6 +1047,9 @@ class MainWindow(tk.Tk):
                 "copy": "会話をコピー",
                 "stop": "停止",
                 "clear": "クリア",
+                "running": "実行中",
+                "stopped": "停止",
+                "ended": "終了",
                 "chip_labels": ["説明", "続行", "レビュー", "修正", "状態", "診断"],
                 "chip_values": [
                     "現在の問題を明確に説明し、次の具体的な一手を示してください。",
@@ -1043,6 +1070,9 @@ class MainWindow(tk.Tk):
                 "copy": "대화 복사",
                 "stop": "중지",
                 "clear": "지우기",
+                "running": "실행 중",
+                "stopped": "중지",
+                "ended": "종료됨",
                 "chip_labels": ["설명", "계속", "리뷰", "수정", "상태", "진단"],
                 "chip_values": [
                     "현재 문제를 명확히 설명하고 다음 구체적인 단계를 제안해 주세요.",
@@ -1063,6 +1093,9 @@ class MainWindow(tk.Tk):
                 "copy": "复制对话",
                 "stop": "停止",
                 "clear": "清空",
+                "running": "正在执行",
+                "stopped": "已停止",
+                "ended": "已结束",
                 "chip_labels": ["解释", "继续", "评审", "修复", "状态", "体检"],
                 "chip_values": [
                     "清楚解释当前问题，并给出下一步最具体的动作。",
@@ -1282,6 +1315,7 @@ class MainWindow(tk.Tk):
         self._refresh_session_summary()
         self.active_var.set(self._t("busy_count", count=self.bridge.active_process_count()))
         self.status_var.set(self._t("status_loaded"))
+        self.chat.set_runtime_state("ended", self._t("runstate_ended"))
 
     def _refresh_model_summary(self, settings: DesktopSettings | None = None) -> None:
         current = settings or self.settings_store.load()
@@ -1393,6 +1427,7 @@ class MainWindow(tk.Tk):
     def _stop_active_request(self) -> None:
         cancelled = self.bridge.cancel_active()
         if cancelled:
+            self.chat.set_runtime_state("stopped", self._t("runstate_stopped"))
             self.status_var.set("request cancelled" if self.current_locale == "en" else ("请求已取消" if self.current_locale == "zh" else ("リクエストを中止しました" if self.current_locale == "ja" else "요청을 중지했습니다")))
             self._chat_add(
                 "Current desktop request cancelled." if self.current_locale == "en" else ("当前桌面请求已取消。" if self.current_locale == "zh" else ("現在のデスクトップ要求を中止しました。" if self.current_locale == "ja" else "현재 데스크톱 요청을 중지했습니다.")),
@@ -1558,11 +1593,12 @@ class MainWindow(tk.Tk):
             return
         self._chat_add(request, role="user", title=self._t("user_request_title"))
         self.status_var.set(self._t("status_running"))
+        self.chat.set_runtime_state("running", self._t("runstate_running"))
         try:
             pending_id = self._chat_add(
                 self._t("pending_body", seconds=0.0),
                 role="assistant",
-                title=self._t("pending_title"),
+                title=self._t("cli_title"),
             )
             self.pending_messages.setdefault(request, []).append(
                 {
@@ -1570,6 +1606,7 @@ class MainWindow(tk.Tk):
                     "started_at": time.time(),
                     "status_text": "",
                     "tool_message_id": None,
+                    "cli_text": "",
                 }
             )
             self._tick_pending_message(request)
@@ -1616,13 +1653,14 @@ class MainWindow(tk.Tk):
             pending["status_text"] = event.text
             self.status_var.set(event.text)
             return
+        if event.kind == "cli":
+            pending["cli_text"] = event.text
+            self._chat_update(int(pending["message_id"]), event.text, title=self._t("cli_title"))
+            return
         if event.kind == "tool":
-            tool_id = pending.get("tool_message_id")
-            if tool_id is None:
-                tool_id = self._chat_add(event.text, role="tool", title=self._t("cli_title"))
-                pending["tool_message_id"] = tool_id
-            else:
-                self._chat_update(int(tool_id), event.text, title=self._t("cli_title"))
+            pending["status_text"] = event.text.splitlines()[-1]
+            self.status_var.set(pending["status_text"])
+            return
 
     def _handle_result(self, result: CommandResult) -> None:
         if result.request_text == "__ui_update__":
@@ -1640,22 +1678,33 @@ class MainWindow(tk.Tk):
         elif self.current_locale == "zh":
             summary = f"退出码 {result.exit_code} · {result.duration_seconds:.2f}s"
         self.status_var.set(summary)
+        self.chat.set_runtime_state(
+            "ended" if result.exit_code == 0 else "stopped",
+            self._t("runstate_ended") if result.exit_code == 0 else self._t("runstate_stopped"),
+        )
 
         pending_queue = self.pending_messages.get(result.request_text, [])
         pending = pending_queue.pop(0) if pending_queue else None
         if not pending_queue and result.request_text in self.pending_messages:
             self.pending_messages.pop(result.request_text, None)
 
+        cli_payload = self.bridge.render_cli_transcript(result).strip()
         if result.stdout:
-            payload = self._render_stdout(result)
+            payload = cli_payload or self._render_stdout(result)
             if pending and payload:
-                self._chat_update(int(pending["message_id"]), payload, title=self._t("reply_title"))
+                self._chat_update(int(pending["message_id"]), payload, title=self._t("cli_title"))
             elif payload:
-                self._chat_add(payload, role="assistant", title=self._t("reply_title"))
+                self._chat_add(payload, role="assistant", title=self._t("cli_title"))
             elif pending:
                 self._chat_remove(int(pending["message_id"]))
         if result.stderr:
             self._chat_add(result.stderr, role="error", title=self._t("stderr_title"))
+        if result.exit_code != 0 or result.stderr:
+            self._chat_add(
+                self._t("run_detail_exit", code=result.exit_code, seconds=result.duration_seconds),
+                role="system" if result.exit_code == 0 else "error",
+                title=self._t("run_detail_title"),
+            )
         if not result.stdout and not result.stderr:
             if pending:
                 self._chat_update(int(pending["message_id"]), self._t("no_output"), title=self._t("cli_title"))
@@ -1726,7 +1775,7 @@ class MainWindow(tk.Tk):
         self._chat_update(
             int(pending["message_id"]),
             body,
-            title=self._t("pending_title"),
+            title=self._t("cli_title"),
         )
         self.after(400, lambda: self._tick_pending_message(request))
 

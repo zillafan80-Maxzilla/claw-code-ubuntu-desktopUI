@@ -46,6 +46,7 @@ class StreamRunState:
     last_status: str = ""
     tool_log: str = ""
     saw_tool_event: bool = False
+    cli_lines: list[str] | None = None
 
 
 class ClawBridge:
@@ -67,9 +68,9 @@ class ClawBridge:
 
     def set_execution_controls(self, high_privilege: bool, autonomous_execution: bool) -> str:
         if high_privilege and autonomous_execution:
-            return "已启用系统级高权限，并允许自动连续执行"
+            return "已允许系统权限，并允许自动连续执行"
         if high_privilege:
-            return "已启用系统级高权限"
+            return "已允许系统权限"
         if autonomous_execution:
             return "已启用自动连续执行"
         return "已恢复常规执行模式"
@@ -345,6 +346,23 @@ class ClawBridge:
                         return normalized
         return self._clean_terminal_output(result.stdout)
 
+    def render_cli_transcript(self, result: CommandResult) -> str:
+        if isinstance(result.parsed_stdout, dict):
+            normalized = self.normalize_result_text(result)
+            return normalized.strip()
+        cleaned = self._strip_terminal_controls(result.stdout).replace("\r", "\n")
+        cleaned = re.sub(r"[⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏]\s+🦀 Thinking\.\.\.", "🦀 Thinking...", cleaned)
+        cleaned = cleaned.replace("✔ ✨ Done", "\n✔ ✨ Done")
+        cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
+        lines = [line.rstrip() for line in cleaned.splitlines()]
+        compacted: list[str] = []
+        for line in lines:
+            stripped = line.strip()
+            if stripped and compacted and compacted[-1].strip() == stripped:
+                continue
+            compacted.append(line)
+        return "\n".join(compacted).strip()
+
     def _normalize_assistant_message(self, message: str) -> str:
         text = message.strip()
         if not text:
@@ -471,12 +489,24 @@ class ClawBridge:
         text = line.strip()
         if not text:
             return
+        if stream_state.cli_lines is None:
+            stream_state.cli_lines = []
         if "Thinking..." in text:
             text = "🦀 Thinking..."
         elif "✔ ✨ Done" in text:
             text = "✔ ✨ Done"
         elif "✘ " in text and not text.startswith("✘ "):
             text = text[text.find("✘ ") :]
+        if not stream_state.cli_lines or stream_state.cli_lines[-1] != text:
+            stream_state.cli_lines.append(text)
+            on_event(
+                BridgeEvent(
+                    request_text=request_text,
+                    kind="cli",
+                    text="\n".join(stream_state.cli_lines),
+                    created_at=time.time(),
+                )
+            )
         if self._is_progress_line(text):
             if text != stream_state.last_status:
                 stream_state.last_status = text

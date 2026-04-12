@@ -38,6 +38,7 @@ class ChatWidget(ttk.Frame):
         self._copy_button: ttk.Button | None = None
         self._stop_button: ttk.Button | None = None
         self._clear_button: ttk.Button | None = None
+        self._runtime_badge: tk.Label | None = None
         self._title_label: ttk.Label | None = None
         self._subtitle_label: ttk.Label | None = None
         self._hint_label: ttk.Label | None = None
@@ -68,17 +69,6 @@ class ChatWidget(ttk.Frame):
             font=("Noto Sans CJK SC", 8),
         )
         self._subtitle_label.pack(anchor="w", pady=(3, 0))
-
-        toolbar = ttk.Frame(header, style="Shell.TFrame")
-        toolbar.grid(row=0, column=1, sticky="e")
-        self._retry_button = ttk.Button(toolbar, text="Retry", command=self._on_retry)
-        self._retry_button.grid(row=0, column=0, padx=(0, 6))
-        self._copy_button = ttk.Button(toolbar, text="Copy Reply", command=self._on_copy)
-        self._copy_button.grid(row=0, column=1, padx=(0, 6))
-        self._stop_button = ttk.Button(toolbar, text="Stop", command=self._on_stop)
-        self._stop_button.grid(row=0, column=2, padx=(0, 6))
-        self._clear_button = ttk.Button(toolbar, text="Clear", command=self._on_clear)
-        self._clear_button.grid(row=0, column=3)
 
         chips = ttk.Frame(self, style="Shell.TFrame")
         chips.grid(row=1, column=0, sticky="ew", pady=(0, 12))
@@ -199,8 +189,34 @@ class ChatWidget(ttk.Frame):
         footer.grid(row=2, column=0, sticky="ew")
         footer.columnconfigure(0, weight=1)
         footer.columnconfigure(1, weight=0)
-        self._send_button = ttk.Button(footer, text="Send", command=self.submit, style="Accent.TButton")
-        self._send_button.grid(row=0, column=1, sticky="e")
+        footer.columnconfigure(2, weight=0)
+
+        toolbar = ttk.Frame(footer, style="Composer.TFrame")
+        toolbar.grid(row=0, column=0, sticky="w")
+        self._retry_button = ttk.Button(toolbar, text="Retry", command=self._on_retry)
+        self._retry_button.grid(row=0, column=0, padx=(0, 6))
+        self._copy_button = ttk.Button(toolbar, text="Copy Chat", command=self._on_copy)
+        self._copy_button.grid(row=0, column=1, padx=(0, 6))
+        self._stop_button = ttk.Button(toolbar, text="Stop", command=self._on_stop)
+        self._stop_button.grid(row=0, column=2, padx=(0, 6))
+        self._clear_button = ttk.Button(toolbar, text="Clear", command=self._on_clear)
+        self._clear_button.grid(row=0, column=3, padx=(0, 6))
+
+        send_shell = ttk.Frame(footer, style="Composer.TFrame")
+        send_shell.grid(row=0, column=1, sticky="e", padx=(12, 0))
+        self._send_button = ttk.Button(send_shell, text="Send", command=self.submit, style="Accent.TButton")
+        self._send_button.grid(row=0, column=0, sticky="e")
+
+        self._runtime_badge = tk.Label(
+            footer,
+            text="Ended",
+            background=PALETTE["base1"],
+            foreground=PALETTE["base3"],
+            font=("Noto Sans CJK SC", 8, "bold"),
+            padx=10,
+            pady=4,
+        )
+        self._runtime_badge.grid(row=0, column=2, sticky="e", padx=(10, 0))
 
     def set_ui_labels(self, labels: dict[str, object]) -> None:
         if self._title_label is not None:
@@ -221,6 +237,8 @@ class ChatWidget(ttk.Frame):
             self._stop_button.configure(text=str(labels.get("stop", "Stop")))
         if self._clear_button is not None:
             self._clear_button.configure(text=str(labels.get("clear", "Clear")))
+        if self._runtime_badge is not None:
+            self._runtime_badge.configure(text=str(labels.get("ended", "Ended")))
         chip_values = labels.get("chip_values")
         chip_labels = labels.get("chip_labels")
         if isinstance(chip_values, list) and isinstance(chip_labels, list):
@@ -247,6 +265,17 @@ class ChatWidget(ttk.Frame):
 
     def focus_input(self) -> None:
         self.input.focus_set()
+
+    def set_runtime_state(self, state: str, text: str) -> None:
+        if self._runtime_badge is None:
+            return
+        palette = {
+            "running": (PALETTE["green"], PALETTE["base3"]),
+            "stopped": (PALETTE["red"], PALETTE["base3"]),
+            "ended": (PALETTE["base1"], PALETTE["base3"]),
+        }
+        background, foreground = palette.get(state, palette["ended"])
+        self._runtime_badge.configure(text=text, background=background, foreground=foreground)
 
     def insert_prompt(self, text: str, replace: bool = False) -> None:
         if replace:
