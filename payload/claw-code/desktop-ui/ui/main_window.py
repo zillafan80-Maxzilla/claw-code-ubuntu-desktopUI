@@ -1407,17 +1407,7 @@ class MainWindow(tk.Tk):
         self._submit_request(self._last_user_request)
 
     def _copy_full_conversation(self) -> None:
-        rows: list[str] = []
-        for entry in self.message_log:
-            text = str(entry.get("text") or "").strip()
-            if not text:
-                continue
-            title = str(entry.get("title") or "").strip()
-            if title:
-                rows.append(f"[{title}]\n{text}")
-            else:
-                rows.append(text)
-        payload = "\n\n".join(rows).strip()
+        payload = self.chat.get_transcript_text().strip()
         if not payload:
             return
         self.clipboard_clear()

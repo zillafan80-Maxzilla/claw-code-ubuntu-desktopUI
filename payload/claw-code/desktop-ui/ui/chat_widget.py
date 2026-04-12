@@ -32,7 +32,7 @@ class ChatWidget(ttk.Frame):
         self._clear_callback = None
         self._chip_callback = None
         self._message_seq = 0
-        self._message_widgets: dict[int, tuple[tk.Frame, tk.Label | None, tk.Text, tk.Label | None, tk.Button | None]] = {}
+        self._message_widgets: dict[int, tuple[str, str, str]] = {}
         self._send_button: ttk.Button | None = None
         self._retry_button: ttk.Button | None = None
         self._copy_button: ttk.Button | None = None
@@ -49,7 +49,6 @@ class ChatWidget(ttk.Frame):
         header = ttk.Frame(self, style="Shell.TFrame")
         header.grid(row=0, column=0, sticky="ew", pady=(0, 12))
         header.columnconfigure(0, weight=1)
-        header.columnconfigure(1, weight=0)
 
         title_box = ttk.Frame(header, style="Shell.TFrame")
         title_box.grid(row=0, column=0, sticky="w")
@@ -105,16 +104,24 @@ class ChatWidget(ttk.Frame):
         transcript_shell.grid_columnconfigure(0, weight=1)
         transcript_shell.grid_columnconfigure(1, weight=0)
 
-        self.canvas = tk.Canvas(
+        self.transcript_text = tk.Text(
             transcript_shell,
             background=PALETTE["base3"],
-            highlightthickness=0,
+            foreground=PALETTE["base01"],
+            wrap="word",
+            font=("Noto Sans CJK SC", 10),
+            relief="flat",
             borderwidth=0,
+            highlightthickness=0,
+            padx=16,
+            pady=14,
+            cursor="xterm",
+            insertbackground=PALETTE["base01"],
         )
         self.scrollbar = tk.Scrollbar(
             transcript_shell,
             orient="vertical",
-            command=self.canvas.yview,
+            command=self.transcript_text.yview,
             width=18,
             background=PALETTE["yellow"],
             troughcolor=PALETTE["base2"],
@@ -123,15 +130,15 @@ class ChatWidget(ttk.Frame):
             bd=0,
             relief="flat",
         )
-        self.canvas.configure(yscrollcommand=self.scrollbar.set)
-        self.canvas.grid(row=0, column=0, sticky="nsew")
+        self.transcript_text.configure(yscrollcommand=self.scrollbar.set)
+        self.transcript_text.grid(row=0, column=0, sticky="nsew")
         self.scrollbar.grid(row=0, column=1, sticky="ns", padx=(6, 0))
-
-        self.transcript = ttk.Frame(self.canvas, style="Shell.TFrame")
-        self.transcript.columnconfigure(0, weight=1)
-        self.canvas_window = self.canvas.create_window((0, 0), window=self.transcript, anchor="nw")
-        self.transcript.bind("<Configure>", self._on_transcript_configure)
-        self.canvas.bind("<Configure>", self._on_canvas_configure)
+        self.transcript_text.bind("<Control-a>", self._select_all)
+        self.transcript_text.bind("<Control-A>", self._select_all)
+        self.transcript_text.bind("<Control-c>", self._copy_selected_or_all)
+        self.transcript_text.bind("<Button-3>", self._show_transcript_menu)
+        self.transcript_text.configure(state="disabled")
+        self._configure_transcript_tags()
 
         composer_shell = tk.Frame(
             self,
@@ -232,7 +239,7 @@ class ChatWidget(ttk.Frame):
         if self._retry_button is not None:
             self._retry_button.configure(text=str(labels.get("retry", "Retry")))
         if self._copy_button is not None:
-            self._copy_button.configure(text=str(labels.get("copy", "Copy Reply")))
+            self._copy_button.configure(text=str(labels.get("copy", "Copy Chat")))
         if self._stop_button is not None:
             self._stop_button.configure(text=str(labels.get("stop", "Stop")))
         if self._clear_button is not None:
@@ -265,6 +272,15 @@ class ChatWidget(ttk.Frame):
 
     def focus_input(self) -> None:
         self.input.focus_set()
+
+    def _configure_transcript_tags(self) -> None:
+        self.transcript_text.tag_configure("title", foreground=PALETTE["base00"], font=("Noto Sans CJK SC", 8, "bold"))
+        self.transcript_text.tag_configure("meta", foreground=PALETTE["base1"], font=("DejaVu Sans Mono", 7))
+        self.transcript_text.tag_configure("user", foreground=PALETTE["blue"])
+        self.transcript_text.tag_configure("assistant", foreground=PALETTE["base01"])
+        self.transcript_text.tag_configure("tool", foreground=PALETTE["orange"])
+        self.transcript_text.tag_configure("error", foreground=PALETTE["red"])
+        self.transcript_text.tag_configure("system", foreground=PALETTE["green"])
 
     def set_runtime_state(self, state: str, text: str) -> None:
         if self._runtime_badge is None:
@@ -299,96 +315,19 @@ class ChatWidget(ttk.Frame):
         self._submit_callback(text)
 
     def add_message(self, text: str, role: str, title: str | None = None) -> int:
-        palette = {
-            "user": (PALETTE["blue"], PALETTE["base3"], "e"),
-            "assistant": (PALETTE["base2"], PALETTE["base01"], "w"),
-            "tool": ("#fdf0c2", PALETTE["base01"], "w"),
-            "error": ("#fde9e7", PALETTE["red"], "w"),
-            "system": ("#e8f5e7", PALETTE["green"], "w"),
-        }
-        background, foreground, sticky = palette.get(role, (PALETTE["base2"], PALETTE["base01"], "w"))
-
-        outer = ttk.Frame(self.transcript, style="Shell.TFrame")
-        outer.grid(sticky="ew", pady=8, padx=10)
-        outer.columnconfigure(0, weight=1)
-
-        card = tk.Frame(
-            outer,
-            background=background,
-            highlightthickness=1,
-            highlightbackground=PALETTE["base1"],
-            padx=16,
-            pady=12,
-        )
-        card.grid(sticky=sticky)
-
-        header_widget = None
-        meta_widget = None
-        copy_button = None
-        if title:
-            header_row = tk.Frame(card, background=background)
-            header_row.pack(fill="x", anchor="w")
-        else:
-            header_row = None
-        if title:
-            header_widget = tk.Label(
-                header_row,
-                text=title,
-                background=background,
-                foreground=foreground,
-                font=("Noto Sans CJK SC", 8, "bold"),
-                anchor="w",
-            )
-            header_widget.pack(side="left", anchor="w")
-            copy_button = tk.Button(
-                header_row,
-                text="Copy",
-                command=lambda value=text: self._copy_message_text(value),
-                background=background,
-                foreground=PALETTE["base00"],
-                activebackground=background,
-                activeforeground=foreground,
-                borderwidth=0,
-                highlightthickness=0,
-                padx=6,
-                pady=0,
-                font=("DejaVu Sans Mono", 7),
-                cursor="hand2",
-            )
-            copy_button.pack(side="right", anchor="e")
-            meta_widget = tk.Label(
-                card,
-                text=time.strftime("%H:%M:%S"),
-                background=background,
-                foreground=PALETTE["base00"],
-                font=("DejaVu Sans Mono", 7),
-                anchor="w",
-            )
-            meta_widget.pack(anchor="w", pady=(2, 6))
-
-        body = tk.Text(
-            card,
-            background=background,
-            foreground=foreground,
-            wrap="word",
-            font=("Noto Sans CJK SC", 10),
-            relief="flat",
-            borderwidth=0,
-            highlightthickness=0,
-            padx=0,
-            pady=0,
-            height=max(1, min(text.count("\n") + 1, 20)),
-            cursor="xterm",
-            insertbackground=foreground,
-        )
-        body.insert("1.0", text)
-        body.configure(state="disabled")
-        body.pack(anchor="w", fill="x")
-        body.bind("<Control-c>", lambda _event, widget=body: self._copy_from_text_widget(widget))
-        body.bind("<Button-3>", lambda event, value=text: self._show_copy_menu(event, value))
-
         self._message_seq += 1
-        self._message_widgets[self._message_seq] = (outer, header_widget, body, meta_widget, copy_button)
+        start_mark = f"msg_{self._message_seq}_start"
+        end_mark = f"msg_{self._message_seq}_end"
+        role_tag = role if role in {"user", "assistant", "tool", "error", "system"} else "assistant"
+        block = self._format_block(text, title)
+        self.transcript_text.configure(state="normal")
+        self.transcript_text.mark_set(start_mark, "end-1c")
+        self.transcript_text.insert("end", block)
+        self.transcript_text.mark_set(end_mark, "end-1c")
+        self.transcript_text.tag_add(role_tag, start_mark, end_mark)
+        self._apply_header_tags(start_mark, end_mark, title)
+        self.transcript_text.configure(state="disabled")
+        self._message_widgets[self._message_seq] = (start_mark, end_mark, role_tag)
         self.after_idle(self._scroll_to_bottom)
         return self._message_seq
 
@@ -396,31 +335,41 @@ class ChatWidget(ttk.Frame):
         widgets = self._message_widgets.get(message_id)
         if widgets is None:
             return
-        _outer, header, body, meta, copy_button = widgets
-        body.configure(state="normal")
-        body.delete("1.0", "end")
-        body.insert("1.0", text)
-        body.configure(height=max(1, min(text.count("\n") + 1, 20)))
-        body.configure(state="disabled")
-        if header is not None and title is not None:
-            header.configure(text=title)
-        if meta is not None:
-            meta.configure(text=time.strftime("%H:%M:%S"))
-        if copy_button is not None:
-            copy_button.configure(command=lambda value=text: self._copy_message_text(value))
+        start_mark, end_mark, role_tag = widgets
+        block = self._format_block(text, title)
+        self.transcript_text.configure(state="normal")
+        self.transcript_text.delete(start_mark, end_mark)
+        self.transcript_text.insert(start_mark, block)
+        self.transcript_text.mark_set(end_mark, f"{start_mark}+{len(block)}c")
+        for tag in ("title", "meta", "user", "assistant", "tool", "error", "system"):
+            self.transcript_text.tag_remove(tag, start_mark, end_mark)
+        self.transcript_text.tag_add(role_tag, start_mark, end_mark)
+        self._apply_header_tags(start_mark, end_mark, title)
+        self.transcript_text.configure(state="disabled")
         self.after_idle(self._scroll_to_bottom)
 
     def remove_message(self, message_id: int) -> None:
         widgets = self._message_widgets.pop(message_id, None)
         if widgets is None:
             return
-        outer, _header, _body, _meta, _copy = widgets
-        outer.destroy()
+        start_mark, end_mark, _role_tag = widgets
+        self.transcript_text.configure(state="normal")
+        self.transcript_text.delete(start_mark, end_mark)
+        self.transcript_text.configure(state="disabled")
 
     def clear(self) -> None:
-        for child in self.transcript.winfo_children():
-            child.destroy()
+        self.transcript_text.configure(state="normal")
+        self.transcript_text.delete("1.0", "end")
+        self.transcript_text.configure(state="disabled")
         self._message_widgets.clear()
+
+    def _apply_header_tags(self, start_mark: str, end_mark: str, title: str | None) -> None:
+        if not title:
+            return
+        line_end = f"{start_mark} lineend"
+        self.transcript_text.tag_add("title", start_mark, line_end)
+        meta_start = f"{start_mark}+{len(title) + 1}c"
+        self.transcript_text.tag_add("meta", meta_start, line_end)
 
     def _on_retry(self) -> None:
         if self._retry_callback is not None:
@@ -457,33 +406,44 @@ class ChatWidget(ttk.Frame):
         self.input.insert("insert", "\n")
         return "break"
 
-    def _on_transcript_configure(self, _event) -> None:
-        self.canvas.configure(scrollregion=self.canvas.bbox("all"))
-
-    def _on_canvas_configure(self, event) -> None:
-        self.canvas.itemconfigure(self.canvas_window, width=event.width)
-
     def _scroll_to_bottom(self) -> None:
-        self.canvas.update_idletasks()
-        self.canvas.yview_moveto(1.0)
+        self.transcript_text.update_idletasks()
+        self.transcript_text.yview_moveto(1.0)
 
     def _copy_message_text(self, text: str) -> None:
         self.clipboard_clear()
         self.clipboard_append(text)
         self.update()
 
-    def _copy_from_text_widget(self, widget: tk.Text) -> str:
+    def get_transcript_text(self) -> str:
+        return self.transcript_text.get("1.0", "end").strip()
+
+    def _copy_selected_or_all(self, _event=None) -> str:
         try:
-            selected = widget.get("sel.first", "sel.last")
+            selected = self.transcript_text.get("sel.first", "sel.last")
         except tk.TclError:
-            selected = widget.get("1.0", "end").strip()
+            selected = self.get_transcript_text()
         if selected:
             self._copy_message_text(selected)
         return "break"
 
-    def _show_copy_menu(self, event, text: str) -> str:
+    def _select_all(self, _event=None) -> str:
+        self.transcript_text.tag_add("sel", "1.0", "end-1c")
+        self.transcript_text.mark_set("insert", "1.0")
+        self.transcript_text.see("insert")
+        return "break"
+
+    def _show_transcript_menu(self, event) -> str:
         menu = tk.Menu(self, tearoff=False)
-        menu.add_command(label="Copy", command=lambda value=text: self._copy_message_text(value))
+        menu.add_command(label="Copy", command=self._copy_selected_or_all)
+        menu.add_command(label="Select All", command=self._select_all)
         menu.tk_popup(event.x_root, event.y_root)
         menu.grab_release()
         return "break"
+
+    @staticmethod
+    def _format_block(text: str, title: str | None) -> str:
+        stamp = time.strftime("%H:%M:%S")
+        header = f"{title}  {stamp}\n" if title else ""
+        body = text.rstrip()
+        return f"{header}{body}\n\n"
