@@ -1,6 +1,6 @@
 # claw-code-ubuntu-desktopUI
 
-当前发布版本 / Current release: `v2.0`
+当前发布版本 / Current release: `v2.1`
 
 ## 中文说明
 
@@ -39,6 +39,8 @@
 - 帮助菜单内置“更新桌面组件”入口
 - 默认语言为英文，可在“语言”菜单中即时切换
 - 启动时自动检查 npm 最新版本，旧版用户可看到更新提示并直接升级
+- 等待计时与运行状态只显示在状态区域，不再每秒写入对话正文污染上下文
+- WebSearch 增加搜索后端降级路径，不再只依赖单一 DuckDuckGo HTML 入口
 
 ### 安装方式
 
@@ -75,7 +77,7 @@ claw-code-ubuntu-desktopui-install
 7. 自动创建 `~/Desktop/claw-code.desktop` 快捷方式。
 8. 若未找到 `claw-code`，则提示是否安装本地版本。
 9. 已安装后，可在桌面窗口中使用“帮助 > 更新桌面组件”直接拉取最新发布版并重新部署。
-10. 自 `1.2` 起的用户打开桌面窗口后，会自动检查是否存在更新；如发现 `2.0` 或更高版本，会弹出更新提示并可直接执行升级。
+10. 自 `1.2` 起的用户打开桌面窗口后，会自动检查是否存在更新；如发现 `2.1` 或更高版本，会弹出更新提示并可直接执行升级。
 
 ### 默认探测的模型接口
 
@@ -168,6 +170,8 @@ Current UI capabilities include:
 - Built-in `Help > Update Desktop Components` action
 - English as the default language with live switching through the `Language` menu
 - Startup npm version checks so older installs can see an update prompt and upgrade directly
+- Waiting timers and silent-running indicators now stay in the status area instead of rewriting chat transcript content every second
+- WebSearch now has backend fallback behavior instead of depending only on a single DuckDuckGo HTML endpoint
 
 ### Installation
 
@@ -204,7 +208,7 @@ The installer performs the following steps:
 7. Create `~/Desktop/claw-code.desktop`.
 8. If `claw-code` is not found, prompt to install a local bundled version.
 9. After installation, the desktop window can self-update through `Help > Update Desktop Components`.
-10. Users coming from `1.2` will see an upgrade prompt on startup when `2.0` or newer is available, and can update in place.
+10. Users coming from `1.2` will see an upgrade prompt on startup when `2.1` or newer is available, and can update in place.
 
 ### Probed model endpoints
 

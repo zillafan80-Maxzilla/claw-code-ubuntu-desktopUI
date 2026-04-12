@@ -31,8 +31,8 @@ PALETTE = {
     "magenta": "#d33682",
 }
 
-APP_VERSION = "2.0"
-APP_VERSION_NPM = "2.0.0"
+APP_VERSION = "2.1"
+APP_VERSION_NPM = "2.1.0"
 NPM_PACKAGE_NAME = "claw-code-ubuntu-desktopui"
 SUPPORTED_LOCALES = ("en", "ja", "ko", "zh")
 LANGUAGE_LABELS = {
@@ -1585,14 +1585,9 @@ class MainWindow(tk.Tk):
         self.status_var.set(self._t("status_running"))
         self.chat.set_runtime_state("running", self._t("runstate_running"))
         try:
-            pending_id = self._chat_add(
-                self._t("pending_body", seconds=0.0),
-                role="assistant",
-                title=self._t("cli_title"),
-            )
             self.pending_messages.setdefault(request, []).append(
                 {
-                    "message_id": pending_id,
+                    "message_id": None,
                     "started_at": time.time(),
                     "status_text": "",
                     "tool_message_id": None,
@@ -1645,7 +1640,12 @@ class MainWindow(tk.Tk):
             return
         if event.kind == "cli":
             pending["cli_text"] = event.text
-            self._chat_update(int(pending["message_id"]), event.text, title=self._t("cli_title"))
+            message_id = pending.get("message_id")
+            if message_id is None:
+                message_id = self._chat_add(event.text, role="assistant", title=self._t("cli_title"))
+                pending["message_id"] = message_id
+            else:
+                self._chat_update(int(message_id), event.text, title=self._t("cli_title"))
             return
         if event.kind == "tool":
             pending["status_text"] = event.text.splitlines()[-1]
@@ -1682,10 +1682,15 @@ class MainWindow(tk.Tk):
         if result.stdout:
             payload = cli_payload or self._render_stdout(result)
             if pending and payload:
-                self._chat_update(int(pending["message_id"]), payload, title=self._t("cli_title"))
+                message_id = pending.get("message_id")
+                if message_id is None:
+                    message_id = self._chat_add(payload, role="assistant", title=self._t("cli_title"))
+                    pending["message_id"] = message_id
+                else:
+                    self._chat_update(int(message_id), payload, title=self._t("cli_title"))
             elif payload:
                 self._chat_add(payload, role="assistant", title=self._t("cli_title"))
-            elif pending:
+            elif pending and pending.get("message_id") is not None:
                 self._chat_remove(int(pending["message_id"]))
         if result.stderr:
             self._chat_add(result.stderr, role="error", title=self._t("stderr_title"))
@@ -1697,7 +1702,12 @@ class MainWindow(tk.Tk):
             )
         if not result.stdout and not result.stderr:
             if pending:
-                self._chat_update(int(pending["message_id"]), self._t("no_output"), title=self._t("cli_title"))
+                message_id = pending.get("message_id")
+                if message_id is None:
+                    message_id = self._chat_add(self._t("no_output"), role="tool", title=self._t("cli_title"))
+                    pending["message_id"] = message_id
+                else:
+                    self._chat_update(int(message_id), self._t("no_output"), title=self._t("cli_title"))
             else:
                 self._chat_add(self._t("no_output"), role="tool", title=self._t("cli_title"))
 
@@ -1762,11 +1772,7 @@ class MainWindow(tk.Tk):
             body = f"{body}\n\n{status_text}"
         elif elapsed >= 3.0:
             body = f"{body}\n\n{self._t('pending_silent')}"
-        self._chat_update(
-            int(pending["message_id"]),
-            body,
-            title=self._t("cli_title"),
-        )
+        self.status_var.set(body.replace("\n\n", " · ").replace("\n", " · "))
         self.after(400, lambda: self._tick_pending_message(request))
 
     def _clear_pending_message(self, request: str) -> None:
@@ -1779,7 +1785,9 @@ class MainWindow(tk.Tk):
         tool_message_id = pending.get("tool_message_id")
         if tool_message_id is not None:
             self._chat_remove(int(tool_message_id))
-        self._chat_remove(int(pending["message_id"]))
+        message_id = pending.get("message_id")
+        if message_id is not None:
+            self._chat_remove(int(message_id))
 
     def _refresh_log(self) -> None:
         self.log_list.delete(0, "end")
