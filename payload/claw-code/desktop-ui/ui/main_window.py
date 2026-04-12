@@ -11,6 +11,7 @@ from tkinter import messagebox, ttk
 
 from core.bridge import BridgeEvent, ClawBridge, CommandResult
 from core.lifecycle import LifecycleManager
+from core.session_store import DesktopSession, DesktopSessionStore, SessionMessage, SessionSummary
 from core.settings import DesktopSettings, DesktopSettingsStore
 from ui.chat_widget import ChatWidget
 
@@ -30,8 +31,8 @@ PALETTE = {
     "magenta": "#d33682",
 }
 
-APP_VERSION = "1.5"
-APP_VERSION_NPM = "1.5.0"
+APP_VERSION = "1.6"
+APP_VERSION_NPM = "1.6.0"
 NPM_PACKAGE_NAME = "claw-code-ubuntu-desktopui"
 SUPPORTED_LOCALES = ("en", "ja", "ko", "zh")
 LANGUAGE_LABELS = {
@@ -70,6 +71,24 @@ I18N = {
         "help_update": "Update Desktop Components",
         "help_tooling": "Tool Calling Adapter Notes",
         "help_version": "Current Version {version}",
+        "session_new": "New Session",
+        "session_save": "Save Session Now",
+        "session_open": "Open Selected Session",
+        "session_compact": "Compact Selected Session",
+        "session_delete": "Delete Selected Session",
+        "session_refresh": "Refresh Session List",
+        "session_panel": "Session History",
+        "session_current": "Current Session",
+        "session_none": "No saved sessions yet",
+        "session_saved": "Session saved",
+        "session_loaded": "Session loaded",
+        "session_deleted": "Session deleted",
+        "session_compacted": "Session compacted",
+        "session_save_failed": "Session save failed",
+        "session_load_failed": "Unable to load the selected session.",
+        "session_delete_confirm_title": "Delete Session",
+        "session_delete_confirm_body": "Delete the selected saved session file?\n\n{path}",
+        "session_compact_failed": "Session compaction failed",
         "title": "Claw Code Desktop Console",
         "subtitle": "Solarized Light desktop shell for model setup, command routing, process supervision, and safe cleanup. Release {version}.",
         "summary_model": "Current Model",
@@ -178,6 +197,24 @@ I18N = {
         "help_update": "デスクトップコンポーネントを更新",
         "help_tooling": "ツール呼び出し適応の説明",
         "help_version": "現在のバージョン {version}",
+        "session_new": "新しいセッション",
+        "session_save": "今のセッションを保存",
+        "session_open": "選択中のセッションを開く",
+        "session_compact": "選択中のセッションを圧縮",
+        "session_delete": "選択中のセッションを削除",
+        "session_refresh": "セッション一覧を更新",
+        "session_panel": "セッション履歴",
+        "session_current": "現在のセッション",
+        "session_none": "保存済みセッションはまだありません",
+        "session_saved": "セッションを保存しました",
+        "session_loaded": "セッションを読み込みました",
+        "session_deleted": "セッションを削除しました",
+        "session_compacted": "セッションを圧縮しました",
+        "session_save_failed": "セッション保存に失敗しました",
+        "session_load_failed": "選択中のセッションを読み込めませんでした。",
+        "session_delete_confirm_title": "セッション削除",
+        "session_delete_confirm_body": "選択した保存済みセッションを削除しますか？\n\n{path}",
+        "session_compact_failed": "セッション圧縮に失敗しました",
         "title": "Claw Code デスクトップコンソール",
         "subtitle": "Solarized Light ベースのデスクトップ UI。モデル設定、コマンド中継、プロセス管理、安全な終了処理を統合します。リリース {version}。",
         "summary_model": "現在のモデル",
@@ -286,6 +323,24 @@ I18N = {
         "help_update": "데스크톱 구성요소 업데이트",
         "help_tooling": "도구 호출 적응 안내",
         "help_version": "현재 버전 {version}",
+        "session_new": "새 세션",
+        "session_save": "현재 세션 저장",
+        "session_open": "선택한 세션 열기",
+        "session_compact": "선택한 세션 압축",
+        "session_delete": "선택한 세션 삭제",
+        "session_refresh": "세션 목록 새로고침",
+        "session_panel": "세션 기록",
+        "session_current": "현재 세션",
+        "session_none": "저장된 세션이 아직 없습니다",
+        "session_saved": "세션이 저장되었습니다",
+        "session_loaded": "세션을 불러왔습니다",
+        "session_deleted": "세션을 삭제했습니다",
+        "session_compacted": "세션을 압축했습니다",
+        "session_save_failed": "세션 저장에 실패했습니다",
+        "session_load_failed": "선택한 세션을 불러오지 못했습니다.",
+        "session_delete_confirm_title": "세션 삭제",
+        "session_delete_confirm_body": "선택한 저장 세션 파일을 삭제하시겠습니까?\n\n{path}",
+        "session_compact_failed": "세션 압축에 실패했습니다",
         "title": "Claw Code 데스크톱 콘솔",
         "subtitle": "Solarized Light 기반 데스크톱 UI로 모델 설정, 명령 라우팅, 프로세스 감독, 안전한 정리를 통합합니다. 릴리스 {version}.",
         "summary_model": "현재 모델",
@@ -394,6 +449,24 @@ I18N = {
         "help_update": "更新桌面组件",
         "help_tooling": "关于工具调用适配",
         "help_version": "当前版本 {version}",
+        "session_new": "新建会话",
+        "session_save": "立即保存当前会话",
+        "session_open": "打开所选会话",
+        "session_compact": "压缩所选会话",
+        "session_delete": "删除所选会话",
+        "session_refresh": "刷新会话列表",
+        "session_panel": "历史会话",
+        "session_current": "当前会话",
+        "session_none": "还没有已保存会话",
+        "session_saved": "会话已保存",
+        "session_loaded": "会话已加载",
+        "session_deleted": "会话已删除",
+        "session_compacted": "会话已压缩",
+        "session_save_failed": "会话保存失败",
+        "session_load_failed": "无法加载所选会话。",
+        "session_delete_confirm_title": "删除会话",
+        "session_delete_confirm_body": "确定删除所选会话文件吗？\n\n{path}",
+        "session_compact_failed": "会话压缩失败",
         "title": "Claw Code 桌面控制台",
         "subtitle": "Solarized Light 中文界面，统一承载模型配置、命令面板、进程托管与安全清理。当前发布版 {version}。",
         "summary_model": "当前模型",
@@ -483,10 +556,13 @@ class MainWindow(tk.Tk):
         self.project_root = Path(project_root)
         self.lifecycle = lifecycle
         self.settings_store = DesktopSettingsStore()
+        self.session_store = DesktopSessionStore(self.project_root)
         self.bridge = ClawBridge(self.project_root, lifecycle, self.settings_store)
-        self.results: queue.Queue[CommandResult] = queue.Queue()
+        self.results: queue.Queue[CommandResult | BridgeEvent] = queue.Queue()
         self.message_log: list[dict[str, object]] = []
         self.pending_messages: dict[str, list[dict[str, object]]] = {}
+        self.current_session: DesktopSession = self.session_store.create_session()
+        self.session_rows: list[SessionSummary] = []
         self.latest_known_version: str | None = None
         self._update_prompted = False
         self._last_user_request: str | None = None
@@ -500,6 +576,7 @@ class MainWindow(tk.Tk):
         self.model_summary_var = tk.StringVar()
         self.endpoint_var = tk.StringVar()
         self.tool_mode_var = tk.StringVar()
+        self.session_var = tk.StringVar()
         self.autopilot_var = tk.BooleanVar(value=False)
         self.model_entry_var = tk.StringVar()
         self.base_url_entry_var = tk.StringVar()
@@ -513,6 +590,7 @@ class MainWindow(tk.Tk):
 
         self._build_style()
         self._rebuild_ui(preserve_chat=False)
+        self._refresh_session_list()
         self.after(120, self._drain_results)
         self.after(800, self._refresh_process_list)
         self.after(1500, self._start_update_probe)
@@ -579,6 +657,13 @@ class MainWindow(tk.Tk):
         menubar = tk.Menu(self, tearoff=False, background=PALETTE["base2"], foreground=PALETTE["base01"], font=menu_font)
 
         session_menu = tk.Menu(menubar, tearoff=False, background=PALETTE["base2"], foreground=PALETTE["base01"], font=menu_font)
+        session_menu.add_command(label=self._t("session_new"), command=self._start_new_session)
+        session_menu.add_command(label=self._t("session_save"), command=self._save_current_session)
+        session_menu.add_command(label=self._t("session_open"), command=self._load_selected_session)
+        session_menu.add_command(label=self._t("session_compact"), command=self._compact_selected_session)
+        session_menu.add_command(label=self._t("session_delete"), command=self._delete_selected_session)
+        session_menu.add_command(label=self._t("session_refresh"), command=self._refresh_session_list)
+        session_menu.add_separator()
         session_menu.add_command(label=self._t("clear_chat"), command=self._clear_chat)
         session_menu.add_separator()
         session_menu.add_command(label=self._t("exit_system"), command=self._on_close)
@@ -660,6 +745,7 @@ class MainWindow(tk.Tk):
         self._summary_row(summary, 0, self._t("summary_model"), self.model_summary_var)
         self._summary_row(summary, 1, self._t("summary_endpoint"), self.endpoint_var)
         self._summary_row(summary, 2, self._t("summary_tool_mode"), self.tool_mode_var)
+        self._summary_row(summary, 3, self._t("session_current"), self.session_var)
 
         self.chat = ChatWidget(left)
         self.chat.grid(row=2, column=0, sticky="nsew")
@@ -750,6 +836,7 @@ class MainWindow(tk.Tk):
         lists_panel.columnconfigure(0, weight=1)
         lists_panel.rowconfigure(1, weight=1)
         lists_panel.rowconfigure(3, weight=1)
+        lists_panel.rowconfigure(5, weight=1)
 
         ttk.Label(lists_panel, text=self._t("process_list"), style="Muted.TLabel").grid(row=0, column=0, sticky="w")
         self.process_list = tk.Listbox(
@@ -779,10 +866,36 @@ class MainWindow(tk.Tk):
         )
         self.log_list.grid(row=3, column=0, sticky="nsew", pady=(6, 0))
 
+        ttk.Label(lists_panel, text=self._t("session_panel"), style="Muted.TLabel").grid(row=4, column=0, sticky="w", pady=(12, 0))
+        session_shell = ttk.Frame(lists_panel, style="Sidebar.TFrame")
+        session_shell.grid(row=5, column=0, sticky="nsew", pady=(6, 0))
+        session_shell.columnconfigure(0, weight=1)
+        session_shell.rowconfigure(0, weight=1)
+        self.session_list = tk.Listbox(
+            session_shell,
+            height=10,
+            background=PALETTE["base3"],
+            foreground=PALETTE["base01"],
+            borderwidth=1,
+            highlightthickness=0,
+            selectbackground=PALETTE["yellow"],
+            selectforeground=PALETTE["base3"],
+            font=("DejaVu Sans Mono", 10),
+        )
+        self.session_list.grid(row=0, column=0, sticky="nsew")
+        self.session_list.bind("<Double-Button-1>", lambda _event: self._load_selected_session())
+        session_buttons = ttk.Frame(session_shell, style="Sidebar.TFrame")
+        session_buttons.grid(row=1, column=0, sticky="ew", pady=(8, 0))
+        session_buttons.columnconfigure((0, 1), weight=1)
+        ttk.Button(session_buttons, text=self._t("session_open"), command=self._load_selected_session).grid(row=0, column=0, sticky="ew", padx=(0, 4))
+        ttk.Button(session_buttons, text=self._t("session_compact"), command=self._compact_selected_session).grid(row=0, column=1, sticky="ew", padx=(4, 0))
+        ttk.Button(session_buttons, text=self._t("session_delete"), command=self._delete_selected_session).grid(row=1, column=0, sticky="ew", padx=(0, 4), pady=(8, 0))
+        ttk.Button(session_buttons, text=self._t("session_refresh"), command=self._refresh_session_list).grid(row=1, column=1, sticky="ew", padx=(4, 0), pady=(8, 0))
+
         footer = ttk.Frame(sidebar, style="Sidebar.TFrame")
         footer.grid(row=6, column=0, sticky="ew", pady=(12, 0))
         footer.columnconfigure((0, 1), weight=1)
-        ttk.Button(footer, text=self._t("footer_clear"), command=self._clear_chat).grid(row=0, column=0, sticky="ew", padx=(0, 6))
+        ttk.Button(footer, text=self._t("session_new"), command=self._start_new_session).grid(row=0, column=0, sticky="ew", padx=(0, 6))
         ttk.Button(footer, text=self._t("footer_reload"), command=self._load_settings_into_form).grid(row=0, column=1, sticky="ew")
 
     def _send_label(self) -> str:
@@ -921,6 +1034,156 @@ class MainWindow(tk.Tk):
         self._chat_add(self._t("welcome_message"), role="system", title=self._t("welcome_title"))
         self._chat_add(self._t("adapter_message"), role="assistant", title=self._t("adapter_title"))
 
+    def _format_session_label(self, session: DesktopSession | SessionSummary) -> str:
+        stamp = time.strftime("%m-%d %H:%M", time.localtime(session.updated_at_ms / 1000))
+        return f"{stamp} · {session.session_id}"
+
+    def _session_preview_line(self, row: SessionSummary) -> str:
+        return f"{self._format_session_label(row)} · {row.preview}"
+
+    def _refresh_session_summary(self) -> None:
+        self.session_var.set(self._format_session_label(self.current_session))
+
+    def _refresh_session_list(self) -> None:
+        self.session_rows = self.session_store.list_sessions()
+        if not hasattr(self, "session_list"):
+            return
+        self.session_list.delete(0, "end")
+        if not self.session_rows:
+            self.session_list.insert("end", self._t("session_none"))
+            return
+        for row in self.session_rows:
+            self.session_list.insert("end", self._session_preview_line(row))
+        selected_index = next(
+            (index for index, row in enumerate(self.session_rows) if row.path == self.current_session.path),
+            0,
+        )
+        self.session_list.selection_clear(0, "end")
+        self.session_list.selection_set(selected_index)
+
+    def _selected_session_summary(self) -> SessionSummary | None:
+        if not self.session_rows:
+            return None
+        selection = self.session_list.curselection() if hasattr(self, "session_list") else ()
+        index = int(selection[0]) if selection else 0
+        if 0 <= index < len(self.session_rows):
+            return self.session_rows[index]
+        return None
+
+    def _messages_for_persistence(self) -> list[SessionMessage]:
+        rows: list[SessionMessage] = []
+        for entry in self.message_log:
+            role = str(entry.get("role") or "")
+            text = str(entry.get("text") or "").strip()
+            title = str(entry.get("title") or "")
+            if not text:
+                continue
+            if title in {self._t("welcome_title"), self._t("adapter_title")}:
+                continue
+            if role not in {"user", "assistant", "tool", "error"}:
+                continue
+            mapped_role = "assistant" if role in {"assistant", "error"} else role
+            rows.append(SessionMessage(role=mapped_role, text=text))
+        return rows
+
+    def _save_current_session(self, *, silent: bool = False) -> None:
+        try:
+            self.current_session = self.session_store.replace_with_messages(
+                self.current_session,
+                self._messages_for_persistence(),
+                compaction_summary=self.current_session.compaction_summary,
+            )
+            self._refresh_session_summary()
+            self._refresh_session_list()
+            if not silent:
+                self.status_var.set(self._t("session_saved"))
+        except Exception:
+            if not silent:
+                self.status_var.set(self._t("session_save_failed"))
+
+    def _load_session_into_ui(self, session: DesktopSession) -> None:
+        self.current_session = session
+        self.chat.clear()
+        self.message_log.clear()
+        self._last_user_request = None
+        self._last_assistant_reply = None
+        conversation_turns: list[tuple[str, str]] = []
+        if not session.messages:
+            self._seed_welcome()
+        else:
+            for message in session.messages:
+                if message.role == "user":
+                    self._chat_add(message.text, role="user", title=self._t("user_request_title"))
+                    conversation_turns.append(("user", message.text))
+                elif message.role == "assistant":
+                    self._chat_add(message.text, role="assistant", title=self._t("reply_title"))
+                    conversation_turns.append(("assistant", message.text))
+                elif message.role == "tool":
+                    self._chat_add(message.text, role="tool", title=self._t("cli_title"))
+        self.bridge.set_conversation(conversation_turns)
+        self._refresh_session_summary()
+        self._refresh_session_list()
+        self.status_var.set(self._t("session_loaded"))
+        self.chat.focus_input()
+
+    def _load_selected_session(self) -> None:
+        row = self._selected_session_summary()
+        if row is None or not row.path.exists():
+            self.status_var.set(self._t("session_load_failed"))
+            return
+        try:
+            self._load_session_into_ui(self.session_store.load_session(row.path))
+        except Exception:
+            self.status_var.set(self._t("session_load_failed"))
+
+    def _start_new_session(self) -> None:
+        self.current_session = self.session_store.create_session()
+        self.bridge.reset_conversation()
+        self.chat.clear()
+        self.message_log.clear()
+        self.pending_messages.clear()
+        self._last_user_request = None
+        self._last_assistant_reply = None
+        self._seed_welcome()
+        self._refresh_session_summary()
+        self._refresh_session_list()
+        self.status_var.set(self._t("status_cleared"))
+        self.chat.focus_input()
+
+    def _compact_selected_session(self) -> None:
+        row = self._selected_session_summary()
+        if row is None or not row.path.exists():
+            self.status_var.set(self._t("session_compact_failed"))
+            return
+        try:
+            session = self.session_store.load_session(row.path)
+            session, detail = self.session_store.compact_session(session)
+            self._chat_add(detail, role="system", title=self._t("session_compacted"))
+            if session.path == self.current_session.path:
+                self._load_session_into_ui(session)
+            else:
+                self._refresh_session_list()
+            self.status_var.set(self._t("session_compacted"))
+        except Exception as exc:
+            self._chat_add(str(exc), role="error", title=self._t("session_compact_failed"))
+            self.status_var.set(self._t("session_compact_failed"))
+
+    def _delete_selected_session(self) -> None:
+        row = self._selected_session_summary()
+        if row is None or not row.path.exists():
+            return
+        if not messagebox.askyesno(
+            self._t("session_delete_confirm_title"),
+            self._t("session_delete_confirm_body", path=str(row.path)),
+        ):
+            return
+        self.session_store.delete_session(row.path)
+        if row.path == self.current_session.path:
+            self._start_new_session()
+        else:
+            self._refresh_session_list()
+            self.status_var.set(self._t("session_deleted"))
+
     def _load_settings_into_form(self) -> None:
         settings = self.settings_store.load()
         self.current_locale = self._normalize_locale(settings.locale)
@@ -929,6 +1192,7 @@ class MainWindow(tk.Tk):
         self.api_key_entry_var.set(settings.api_key)
         self.tool_style_entry_var.set(settings.tool_call_style)
         self._refresh_model_summary(settings)
+        self._refresh_session_summary()
         self.active_var.set(self._t("busy_count", count=self.bridge.active_process_count()))
         self.status_var.set(self._t("status_loaded"))
 
@@ -1219,14 +1483,7 @@ class MainWindow(tk.Tk):
         self._chat_add(state, role="system", title=self._t("permission_mode_title"))
 
     def _clear_chat(self) -> None:
-        self.chat.clear()
-        self.message_log.clear()
-        self._last_user_request = None
-        self._last_assistant_reply = None
-        self.bridge.reset_conversation()
-        self._seed_welcome()
-        self.status_var.set(self._t("status_cleared"))
-        self.chat.focus_input()
+        self._start_new_session()
 
     def _drain_results(self) -> None:
         try:
@@ -1295,6 +1552,9 @@ class MainWindow(tk.Tk):
                 self._chat_update(int(pending["message_id"]), self._t("no_output"), title=self._t("cli_title"))
             else:
                 self._chat_add(self._t("no_output"), role="tool", title=self._t("cli_title"))
+
+        if not result.request_text.startswith("/") and not result.request_text.startswith("__"):
+            self._save_current_session(silent=True)
 
         self._refresh_log()
         self._refresh_process_list()

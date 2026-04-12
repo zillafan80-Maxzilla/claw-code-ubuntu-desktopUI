@@ -78,6 +78,13 @@ class ClawBridge:
     def reset_conversation(self) -> None:
         self.conversation.clear()
 
+    def set_conversation(self, turns: list[tuple[str, str]]) -> None:
+        self.conversation = [
+            (role.strip(), text.strip())
+            for role, text in turns
+            if role.strip() and text.strip()
+        ][-24:]
+
     def cancel_active(self) -> bool:
         cancelled = False
         with self._lock:
