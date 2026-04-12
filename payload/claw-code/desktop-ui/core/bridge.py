@@ -514,10 +514,12 @@ class ClawBridge:
             return True
         if self._looks_like_raw_tool_stub(text):
             return True
+        if self._is_empty_or_nonfinal_reply(text):
+            return True
+        if stream_state.saw_tool_event and self._looks_like_tool_only_reply(text):
+            return True
         if stream_state.saw_tool_event:
             return False
-        if not text:
-            return True
         return False
 
     def _looks_like_raw_tool_stub(self, text: str) -> bool:
@@ -527,6 +529,7 @@ class ClawBridge:
         return (
             lowered.startswith('{"type: tool_call')
             or lowered.startswith('{"type":"tool_call"')
+            or (lowered.startswith('{"type') and "tool" in lowered)
             or lowered.startswith("{“type")
             or '"name": "bash"' in lowered
             or '"name":"bash"' in lowered
@@ -535,6 +538,37 @@ class ClawBridge:
             or '\nname: bash' in lowered
             or '\nname: websearch' in lowered
         )
+
+    def _is_empty_or_nonfinal_reply(self, text: str) -> bool:
+        lowered = text.strip().lower()
+        if not lowered:
+            return True
+        return lowered in {
+            "the command completed without output.",
+            "命令已完成，但没有输出内容。",
+            "コマンドは完了しましたが出力はありませんでした。",
+            "명령은 완료되었지만 출력이 없습니다.",
+        }
+
+    def _looks_like_tool_only_reply(self, text: str) -> bool:
+        stripped = text.strip()
+        if not stripped:
+            return True
+        lines = [line.strip() for line in stripped.splitlines() if line.strip()]
+        if not lines:
+            return True
+        for line in lines:
+            if not (
+                line.startswith("$ ")
+                or line.startswith("✓ ")
+                or line.startswith("✗ ")
+                or line.startswith("ssh ")
+                or line.startswith("bash ")
+                or line.startswith("websearch ")
+                or line.startswith("webfetch ")
+            ):
+                return False
+        return True
 
     def _run_structured_fallback(
         self,

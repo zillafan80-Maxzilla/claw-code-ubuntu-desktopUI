@@ -112,7 +112,20 @@ class ChatWidget(ttk.Frame):
         )
         transcript_shell.grid(row=2, column=0, sticky="nsew", pady=(0, 12))
         transcript_shell.grid_rowconfigure(0, weight=1)
-        transcript_shell.grid_columnconfigure(0, weight=1)
+        transcript_shell.grid_columnconfigure(0, weight=0)
+        transcript_shell.grid_columnconfigure(1, weight=1)
+
+        left_track = tk.Frame(
+            transcript_shell,
+            background=PALETTE["base1"],
+            highlightthickness=1,
+            highlightbackground=PALETTE["base00"],
+            width=20,
+        )
+        left_track.grid(row=0, column=0, sticky="ns", padx=(0, 6))
+        left_track.grid_propagate(False)
+        left_track.rowconfigure(0, weight=1)
+        left_track.columnconfigure(0, weight=1)
 
         self.canvas = tk.Canvas(
             transcript_shell,
@@ -120,10 +133,21 @@ class ChatWidget(ttk.Frame):
             highlightthickness=0,
             borderwidth=0,
         )
-        self.scrollbar = ttk.Scrollbar(transcript_shell, orient="vertical", command=self.canvas.yview)
+        self.scrollbar = tk.Scrollbar(
+            left_track,
+            orient="vertical",
+            command=self.canvas.yview,
+            width=18,
+            background=PALETTE["yellow"],
+            troughcolor=PALETTE["base2"],
+            activebackground=PALETTE["orange"],
+            highlightthickness=0,
+            bd=0,
+            relief="flat",
+        )
         self.canvas.configure(yscrollcommand=self.scrollbar.set)
-        self.canvas.grid(row=0, column=0, sticky="nsew")
-        self.scrollbar.grid(row=0, column=1, sticky="ns")
+        self.scrollbar.grid(row=0, column=0, sticky="ns")
+        self.canvas.grid(row=0, column=1, sticky="nsew")
 
         self.transcript = ttk.Frame(self.canvas, style="Shell.TFrame")
         self.transcript.columnconfigure(0, weight=1)
