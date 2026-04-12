@@ -149,8 +149,6 @@ class ClawBridge:
         if text.startswith("/"):
             return self._build_slash_command(text, settings)
 
-        effective_prompt = self._compose_prompt(text)
-
         argv = [
             str(self.claw_bin),
             "--model",
@@ -160,7 +158,7 @@ class ClawBridge:
             argv.extend(["--permission-mode", "danger-full-access"])
         if settings.autonomous_execution:
             argv.append("--dangerously-skip-permissions")
-        argv.extend(["prompt", effective_prompt])
+        argv.extend(["prompt", text])
         return argv
 
     def _build_slash_command(
@@ -287,31 +285,6 @@ class ClawBridge:
         timestamp = time.strftime("%H:%M:%S")
         self.history.append(f"[{timestamp}] {entry}")
         self.history[:] = self.history[-200:]
-
-    def _compose_prompt(self, latest_user_text: str) -> str:
-        history = self.conversation[-12:]
-        if not history:
-            return latest_user_text
-        lines = [
-            "Continue this existing conversation.",
-            "Preserve task continuity across turns.",
-            "If the user is in the middle of a multi-step task, keep working until that task is complete.",
-            "When tools are available and useful, use them instead of only describing what you would do.",
-            "If one approach fails, try a different concrete approach before giving up.",
-            "",
-            "Conversation so far:",
-        ]
-        for role, text in history:
-            prefix = "User" if role == "user" else "Assistant"
-            lines.append(f"{prefix}: {text}")
-        lines.extend(
-            [
-                "",
-                "Latest user message:",
-                latest_user_text,
-            ]
-        )
-        return "\n".join(lines)
 
     def _record_conversation_turn(self, request_text: str, result: CommandResult) -> None:
         if request_text.strip().startswith("/"):
