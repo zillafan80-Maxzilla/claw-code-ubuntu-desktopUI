@@ -317,7 +317,7 @@ class ClawBridge:
             return
         self.conversation.append(("user", request_text.strip()))
         reply = self._extract_assistant_text(result)
-        if reply:
+        if reply and not self._looks_like_raw_tool_stub(reply) and not self._looks_like_tool_only_reply(reply) and not self._is_empty_or_nonfinal_reply(reply):
             self.conversation.append(("assistant", reply))
         self.conversation[:] = self.conversation[-24:]
 

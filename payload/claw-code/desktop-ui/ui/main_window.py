@@ -119,6 +119,7 @@ I18N = {
         "execution_log": "Execution Log",
         "footer_clear": "Clear Chat",
         "footer_reload": "Reload Settings",
+        "copy_chat_done": "Copied full conversation",
         "welcome_title": "Launcher",
         "welcome_message": "The desktop interface is ready. Configure model, endpoint, API key, language, and tool mode from the right side. The left transcript always shows the active model summary.",
         "adapter_title": "Adapter Note",
@@ -138,6 +139,7 @@ I18N = {
         "user_request_title": "User Request",
         "pending_title": "Model Processing",
         "pending_body": "Generating reply...\nWaited {seconds:.1f} seconds",
+        "pending_silent": "CLI is still running and waiting for model or tool output...",
         "reply_title": "Model Reply",
         "stderr_title": "Standard Error",
         "validation_title": "Desktop Validation",
@@ -246,6 +248,7 @@ I18N = {
         "execution_log": "実行ログ",
         "footer_clear": "会話をクリア",
         "footer_reload": "設定を再読込",
+        "copy_chat_done": "会話全体をコピーしました",
         "welcome_title": "ランチャー",
         "welcome_message": "デスクトップ UI が起動しました。右側でモデル、接続先、API キー、言語、ツール適応を設定できます。左側には現在のモデル概要が常に表示されます。",
         "adapter_title": "適応メモ",
@@ -265,6 +268,7 @@ I18N = {
         "user_request_title": "ユーザー要求",
         "pending_title": "モデル処理中",
         "pending_body": "返信を生成中...\n待機時間 {seconds:.1f} 秒",
+        "pending_silent": "CLI は実行中です。モデルまたはツール出力を待っています...",
         "reply_title": "モデル返信",
         "stderr_title": "標準エラー",
         "validation_title": "デスクトップ検証",
@@ -373,6 +377,7 @@ I18N = {
         "execution_log": "실행 로그",
         "footer_clear": "대화 지우기",
         "footer_reload": "설정 새로고침",
+        "copy_chat_done": "전체 대화를 복사했습니다",
         "welcome_title": "런처",
         "welcome_message": "데스크톱 UI가 시작되었습니다. 오른쪽에서 모델, 엔드포인트, API 키, 언어, 도구 적응 방식을 바로 설정할 수 있습니다. 왼쪽 대화 영역에는 현재 모델 요약이 계속 표시됩니다.",
         "adapter_title": "어댑터 메모",
@@ -392,6 +397,7 @@ I18N = {
         "user_request_title": "사용자 요청",
         "pending_title": "모델 처리 중",
         "pending_body": "응답 생성 중...\n대기 시간 {seconds:.1f}초",
+        "pending_silent": "CLI가 계속 실행 중이며 모델 또는 도구 출력을 기다리고 있습니다...",
         "reply_title": "모델 응답",
         "stderr_title": "표준 오류",
         "validation_title": "데스크톱 검증",
@@ -500,6 +506,7 @@ I18N = {
         "execution_log": "执行日志",
         "footer_clear": "清空对话",
         "footer_reload": "刷新配置",
+        "copy_chat_done": "已复制整个对话",
         "welcome_title": "启动器",
         "welcome_message": "桌面界面已启动。右侧可直接配置模型、接口地址、API 密钥、语言和工具适配方式，左侧对话区会持续显示当前模型摘要。",
         "adapter_title": "模型适配说明",
@@ -519,6 +526,7 @@ I18N = {
         "user_request_title": "用户请求",
         "pending_title": "模型处理中",
         "pending_body": "正在生成回复…\n已等待 {seconds:.1f} 秒",
+        "pending_silent": "CLI 仍在运行，正在等待模型或工具输出…",
         "reply_title": "模型回复",
         "stderr_title": "标准错误",
         "validation_title": "桌面校验",
@@ -722,10 +730,52 @@ class MainWindow(tk.Tk):
         root.columnconfigure(1, weight=2)
         root.rowconfigure(0, weight=1)
 
-        left = ttk.Frame(root, style="Shell.TFrame")
-        left.grid(row=0, column=0, sticky="nsew", padx=(0, 18))
+        left_shell = ttk.Frame(root, style="Shell.TFrame")
+        left_shell.grid(row=0, column=0, sticky="nsew", padx=(0, 18))
+        left_shell.columnconfigure(0, weight=0, minsize=24)
+        left_shell.columnconfigure(1, weight=1)
+        left_shell.rowconfigure(0, weight=1)
+
+        left_track = tk.Frame(
+            left_shell,
+            background=PALETTE["base1"],
+            highlightthickness=1,
+            highlightbackground=PALETTE["base00"],
+            width=20,
+        )
+        left_track.grid(row=0, column=0, sticky="ns", padx=(0, 6))
+        left_track.grid_propagate(False)
+        left_track.rowconfigure(0, weight=1)
+        left_track.columnconfigure(0, weight=1)
+
+        self.left_canvas = tk.Canvas(
+            left_shell,
+            background=PALETTE["base3"],
+            highlightthickness=0,
+            borderwidth=0,
+        )
+        self.left_canvas.grid(row=0, column=1, sticky="nsew")
+        self.left_scrollbar = tk.Scrollbar(
+            left_track,
+            orient="vertical",
+            command=self.left_canvas.yview,
+            width=18,
+            background=PALETTE["yellow"],
+            troughcolor=PALETTE["base2"],
+            activebackground=PALETTE["orange"],
+            highlightthickness=0,
+            bd=0,
+            relief="flat",
+        )
+        self.left_scrollbar.grid(row=0, column=0, sticky="ns")
+        self.left_canvas.configure(yscrollcommand=self.left_scrollbar.set)
+
+        left = ttk.Frame(self.left_canvas, style="Shell.TFrame")
         left.rowconfigure(2, weight=1)
         left.columnconfigure(0, weight=1)
+        self.left_window = self.left_canvas.create_window((0, 0), window=left, anchor="nw")
+        left.bind("<Configure>", self._on_left_configure)
+        self.left_canvas.bind("<Configure>", self._on_left_canvas_configure)
 
         masthead = ttk.Frame(left, style="Shell.TFrame")
         masthead.grid(row=0, column=0, sticky="ew", pady=(0, 12))
@@ -757,7 +807,7 @@ class MainWindow(tk.Tk):
         self.chat.set_callbacks(
             on_submit=self._submit_request,
             on_retry=self._retry_last_request,
-            on_copy=self._copy_last_reply,
+            on_copy=self._copy_full_conversation,
             on_stop=self._stop_active_request,
             on_clear=self._clear_chat,
             on_chip=self._insert_quick_prompt,
@@ -950,7 +1000,7 @@ class MainWindow(tk.Tk):
                 "hint": "Enter sends, Shift+Enter inserts a newline, Stop cancels the current run.",
                 "send": "Send",
                 "retry": "Retry",
-                "copy": "Copy Reply",
+                "copy": "Copy Chat",
                 "stop": "Stop",
                 "clear": "Clear",
                 "chip_labels": ["Explain", "Continue", "Review", "Fix", "Status", "Doctor"],
@@ -970,7 +1020,7 @@ class MainWindow(tk.Tk):
                 "hint": "Enter で送信、Shift+Enter で改行、停止で現在の実行を中断します。",
                 "send": "送信",
                 "retry": "再試行",
-                "copy": "返信をコピー",
+                "copy": "会話をコピー",
                 "stop": "停止",
                 "clear": "クリア",
                 "chip_labels": ["説明", "続行", "レビュー", "修正", "状態", "診断"],
@@ -990,7 +1040,7 @@ class MainWindow(tk.Tk):
                 "hint": "Enter 전송, Shift+Enter 줄바꿈, 중지는 현재 실행을 취소합니다.",
                 "send": "보내기",
                 "retry": "다시 시도",
-                "copy": "응답 복사",
+                "copy": "대화 복사",
                 "stop": "중지",
                 "clear": "지우기",
                 "chip_labels": ["설명", "계속", "리뷰", "수정", "상태", "진단"],
@@ -1010,7 +1060,7 @@ class MainWindow(tk.Tk):
                 "hint": "Enter 发送，Shift+Enter 换行，停止会取消当前运行。",
                 "send": "发送",
                 "retry": "重试",
-                "copy": "复制回复",
+                "copy": "复制对话",
                 "stop": "停止",
                 "clear": "清空",
                 "chip_labels": ["解释", "继续", "评审", "修复", "状态", "体检"],
@@ -1322,12 +1372,23 @@ class MainWindow(tk.Tk):
         self.chat.insert_prompt(self._last_user_request, replace=True)
         self._submit_request(self._last_user_request)
 
-    def _copy_last_reply(self) -> None:
-        if not self._last_assistant_reply:
+    def _copy_full_conversation(self) -> None:
+        rows: list[str] = []
+        for entry in self.message_log:
+            text = str(entry.get("text") or "").strip()
+            if not text:
+                continue
+            title = str(entry.get("title") or "").strip()
+            if title:
+                rows.append(f"[{title}]\n{text}")
+            else:
+                rows.append(text)
+        payload = "\n\n".join(rows).strip()
+        if not payload:
             return
         self.clipboard_clear()
-        self.clipboard_append(self._last_assistant_reply)
-        self.status_var.set("copied last reply" if self.current_locale == "en" else ("已复制最后一条回复" if self.current_locale == "zh" else ("最後の返信をコピーしました" if self.current_locale == "ja" else "마지막 응답을 복사했습니다")))
+        self.clipboard_append(payload)
+        self.status_var.set(self._t("copy_chat_done"))
 
     def _stop_active_request(self) -> None:
         cancelled = self.bridge.cancel_active()
@@ -1660,6 +1721,8 @@ class MainWindow(tk.Tk):
         body = self._t("pending_body", seconds=elapsed)
         if status_text:
             body = f"{body}\n\n{status_text}"
+        elif elapsed >= 3.0:
+            body = f"{body}\n\n{self._t('pending_silent')}"
         self._chat_update(
             int(pending["message_id"]),
             body,
@@ -1696,6 +1759,12 @@ class MainWindow(tk.Tk):
 
     def _on_sidebar_configure(self, _event) -> None:
         self.sidebar_canvas.configure(scrollregion=self.sidebar_canvas.bbox("all"))
+
+    def _on_left_configure(self, _event) -> None:
+        self.left_canvas.configure(scrollregion=self.left_canvas.bbox("all"))
+
+    def _on_left_canvas_configure(self, event) -> None:
+        self.left_canvas.itemconfigure(self.left_window, width=event.width)
 
     def _on_sidebar_canvas_configure(self, event) -> None:
         self.sidebar_canvas.itemconfigure(self.sidebar_window, width=event.width)
