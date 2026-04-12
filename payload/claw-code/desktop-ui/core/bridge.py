@@ -14,6 +14,9 @@ from typing import Callable
 from core.lifecycle import LifecycleManager
 from core.settings import DesktopSettings, DesktopSettingsStore
 
+STREAM_SILENT_TIMEOUT_SECONDS = 45.0
+COMMAND_TIMEOUT_SECONDS = 180.0
+JSON_TIMEOUT_SECONDS = 90.0
 
 @dataclass
 class CommandResult:
@@ -229,13 +232,18 @@ class ClawBridge:
                 self._active[proc.pid] = proc
             self.lifecycle.register_process("claw-cli", proc.pid, argv, self.project_root.parent)
             if json_mode:
-                stdout, stderr = proc.communicate()
+                stdout, stderr = self._communicate_with_timeout(
+                    proc,
+                    JSON_TIMEOUT_SECONDS,
+                    f"Desktop bridge JSON mode timed out after {JSON_TIMEOUT_SECONDS:.0f}s while waiting for model output.",
+                )
             else:
                 stdout, stderr = self._stream_command_output(
                     proc,
                     request_text,
                     on_event,
                     stream_state,
+                    started_at,
                 )
             result = CommandResult(
                 request_text=request_text,
@@ -398,9 +406,12 @@ class ClawBridge:
         request_text: str,
         on_event: Callable[[BridgeEvent], None] | None,
         stream_state: StreamRunState,
+        started_at: float,
     ) -> tuple[str, str]:
         stdout_parts: list[str] = []
         stderr_parts: list[str] = []
+        last_output_at = [time.time()]
+        timeout_reason = [""]
 
         def read_stdout() -> None:
             assert proc.stdout is not None
@@ -410,6 +421,7 @@ class ClawBridge:
                     break
                 text = chunk.decode("utf-8", errors="replace")
                 stdout_parts.append(text)
+                last_output_at[0] = time.time()
                 if on_event is not None:
                     self._emit_stream_events(request_text, text, on_event, stream_state)
 
@@ -420,11 +432,30 @@ class ClawBridge:
                 if not chunk:
                     break
                 stderr_parts.append(chunk.decode("utf-8", errors="replace"))
+                last_output_at[0] = time.time()
 
         stdout_thread = threading.Thread(target=read_stdout, daemon=True)
         stderr_thread = threading.Thread(target=read_stderr, daemon=True)
         stdout_thread.start()
         stderr_thread.start()
+        while True:
+            exit_code = proc.poll()
+            now = time.time()
+            if exit_code is not None:
+                break
+            if now - last_output_at[0] >= STREAM_SILENT_TIMEOUT_SECONDS:
+                timeout_reason[0] = (
+                    f"Desktop bridge timed out after {STREAM_SILENT_TIMEOUT_SECONDS:.0f}s without any model or tool output."
+                )
+                self._terminate_process(proc)
+                break
+            if now - started_at >= COMMAND_TIMEOUT_SECONDS:
+                timeout_reason[0] = (
+                    f"Desktop bridge timed out after {COMMAND_TIMEOUT_SECONDS:.0f}s total runtime."
+                )
+                self._terminate_process(proc)
+                break
+            time.sleep(0.25)
         proc.wait()
         stdout_thread.join()
         stderr_thread.join()
@@ -435,7 +466,10 @@ class ClawBridge:
                 on_event,
                 stream_state,
             )
-        return "".join(stdout_parts).strip(), "".join(stderr_parts).strip()
+        stderr_text = "".join(stderr_parts).strip()
+        if timeout_reason[0]:
+            stderr_text = "\n".join(part for part in [stderr_text, timeout_reason[0]] if part).strip()
+        return "".join(stdout_parts).strip(), stderr_text
 
     def _emit_stream_events(
         self,
@@ -513,6 +547,9 @@ class ClawBridge:
         stream_state: StreamRunState,
     ) -> bool:
         text = self.normalize_result_text(result).strip()
+        lowered_stderr = result.stderr.lower()
+        if "timed out" in lowered_stderr or "timeout" in lowered_stderr:
+            return False
         if result.exit_code != 0:
             return True
         if self._looks_like_raw_tool_stub(text):
@@ -607,7 +644,11 @@ class ClawBridge:
             with self._lock:
                 self._active[retry_proc.pid] = retry_proc
             self.lifecycle.register_process("claw-cli-retry", retry_proc.pid, retry_argv, self.project_root.parent)
-            stdout, stderr = retry_proc.communicate()
+            stdout, stderr = self._communicate_with_timeout(
+                retry_proc,
+                JSON_TIMEOUT_SECONDS,
+                f"Structured fallback timed out after {JSON_TIMEOUT_SECONDS:.0f}s while waiting for model output.",
+            )
             result = CommandResult(
                 request_text=request_text,
                 argv=retry_argv,
@@ -643,6 +684,42 @@ class ClawBridge:
         if not inserted:
             retry.extend(["--output-format", "json"])
         return retry
+
+    def _communicate_with_timeout(
+        self,
+        proc: subprocess.Popen[str],
+        timeout_seconds: float,
+        timeout_message: str,
+    ) -> tuple[str, str]:
+        try:
+            stdout, stderr = proc.communicate(timeout=timeout_seconds)
+            return (stdout or "").strip(), (stderr or "").strip()
+        except subprocess.TimeoutExpired:
+            self._terminate_process(proc)
+            stdout, stderr = proc.communicate()
+            stderr_text = "\n".join(
+                part for part in [(stderr or "").strip(), timeout_message] if part
+            ).strip()
+            return (stdout or "").strip(), stderr_text
+
+    @staticmethod
+    def _terminate_process(proc: subprocess.Popen[object]) -> None:
+        try:
+            os.killpg(proc.pid, signal.SIGTERM)
+        except OSError:
+            try:
+                proc.terminate()
+            except OSError:
+                return
+        time.sleep(0.4)
+        if proc.poll() is None:
+            try:
+                os.killpg(proc.pid, signal.SIGKILL)
+            except OSError:
+                try:
+                    proc.kill()
+                except OSError:
+                    return
 
     @staticmethod
     def _strip_terminal_controls(text: str) -> str:
