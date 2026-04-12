@@ -40,6 +40,14 @@ class BridgeEvent:
     created_at: float
 
 
+@dataclass
+class StreamRunState:
+    buffer: str = ""
+    last_status: str = ""
+    tool_log: str = ""
+    saw_tool_event: bool = False
+
+
 class ClawBridge:
     def __init__(
         self,
@@ -201,6 +209,7 @@ class ClawBridge:
         proc: subprocess.Popen[str] | None = None
         try:
             json_mode = "--output-format" in argv and "json" in argv
+            stream_state = StreamRunState()
             proc = subprocess.Popen(
                 argv,
                 cwd=self.project_root.parent,
@@ -221,6 +230,7 @@ class ClawBridge:
                     proc,
                     request_text,
                     on_event,
+                    stream_state,
                 )
             result = CommandResult(
                 request_text=request_text,
@@ -233,6 +243,15 @@ class ClawBridge:
                 pid=proc.pid,
                 parsed_stdout=self._try_parse_json(stdout),
             )
+            if not json_mode and self._should_retry_with_structured_fallback(result, stream_state):
+                retry_result = self._run_structured_fallback(
+                    request_text,
+                    argv,
+                    env,
+                    on_event,
+                )
+                if retry_result is not None:
+                    result = retry_result
             self._append_history(
                 f"完成[{result.exit_code}] {Path(argv[0]).name} · {result.duration_seconds:.2f}s"
             )
@@ -271,6 +290,7 @@ class ClawBridge:
             "Preserve task continuity across turns.",
             "If the user is in the middle of a multi-step task, keep working until that task is complete.",
             "When tools are available and useful, use them instead of only describing what you would do.",
+            "If one approach fails, try a different concrete approach before giving up.",
             "",
             "Conversation so far:",
         ]
@@ -380,14 +400,10 @@ class ClawBridge:
         proc: subprocess.Popen[bytes],
         request_text: str,
         on_event: Callable[[BridgeEvent], None] | None,
+        stream_state: StreamRunState,
     ) -> tuple[str, str]:
         stdout_parts: list[str] = []
         stderr_parts: list[str] = []
-        stream_state = {
-            "buffer": "",
-            "last_status": "",
-            "tool_log": "",
-        }
 
         def read_stdout() -> None:
             assert proc.stdout is not None
@@ -415,10 +431,10 @@ class ClawBridge:
         proc.wait()
         stdout_thread.join()
         stderr_thread.join()
-        if on_event is not None and stream_state["buffer"].strip():
+        if on_event is not None and stream_state.buffer.strip():
             self._emit_stream_line(
                 request_text,
-                stream_state["buffer"],
+                stream_state.buffer,
                 on_event,
                 stream_state,
             )
@@ -429,14 +445,14 @@ class ClawBridge:
         request_text: str,
         chunk: str,
         on_event: Callable[[BridgeEvent], None],
-        stream_state: dict[str, str],
+        stream_state: StreamRunState,
     ) -> None:
         cleaned = self._strip_terminal_controls(chunk).replace("\r", "\n")
         if not cleaned:
             return
-        stream_state["buffer"] += cleaned
-        while "\n" in stream_state["buffer"]:
-            line, stream_state["buffer"] = stream_state["buffer"].split("\n", 1)
+        stream_state.buffer += cleaned
+        while "\n" in stream_state.buffer:
+            line, stream_state.buffer = stream_state.buffer.split("\n", 1)
             self._emit_stream_line(request_text, line, on_event, stream_state)
 
     def _emit_stream_line(
@@ -444,7 +460,7 @@ class ClawBridge:
         request_text: str,
         line: str,
         on_event: Callable[[BridgeEvent], None],
-        stream_state: dict[str, str],
+        stream_state: StreamRunState,
     ) -> None:
         text = line.strip()
         if not text:
@@ -456,8 +472,8 @@ class ClawBridge:
         elif "✘ " in text and not text.startswith("✘ "):
             text = text[text.find("✘ ") :]
         if self._is_progress_line(text):
-            if text != stream_state["last_status"]:
-                stream_state["last_status"] = text
+            if text != stream_state.last_status:
+                stream_state.last_status = text
                 on_event(
                     BridgeEvent(
                         request_text=request_text,
@@ -469,17 +485,121 @@ class ClawBridge:
             return
         tool_line = self._normalize_tool_line(text)
         if tool_line:
-            current = stream_state["tool_log"].splitlines()
+            current = stream_state.tool_log.splitlines()
             if tool_line not in current:
-                stream_state["tool_log"] = "\n".join([*current, tool_line]).strip()
+                stream_state.tool_log = "\n".join([*current, tool_line]).strip()
+                stream_state.saw_tool_event = True
                 on_event(
                     BridgeEvent(
                         request_text=request_text,
                         kind="tool",
-                        text=stream_state["tool_log"],
+                        text=stream_state.tool_log,
                         created_at=time.time(),
                     )
                 )
+
+    def _should_retry_with_structured_fallback(
+        self,
+        result: CommandResult,
+        stream_state: StreamRunState,
+    ) -> bool:
+        text = self.normalize_result_text(result).strip()
+        if result.exit_code != 0:
+            return True
+        if self._looks_like_raw_tool_stub(text):
+            return True
+        if stream_state.saw_tool_event:
+            return False
+        if not text:
+            return True
+        return False
+
+    def _looks_like_raw_tool_stub(self, text: str) -> bool:
+        lowered = text.strip().lower()
+        if not lowered:
+            return False
+        return (
+            lowered.startswith('{"type: tool_call')
+            or lowered.startswith('{"type":"tool_call"')
+            or lowered.startswith("{“type")
+            or '"name": "bash"' in lowered
+            or '"name":"bash"' in lowered
+            or '"name": "websearch"' in lowered
+            or '"name":"websearch"' in lowered
+            or '\nname: bash' in lowered
+            or '\nname: websearch' in lowered
+        )
+
+    def _run_structured_fallback(
+        self,
+        request_text: str,
+        argv: list[str],
+        env: dict[str, str],
+        on_event: Callable[[BridgeEvent], None] | None,
+    ) -> CommandResult | None:
+        if on_event is not None:
+            on_event(
+                BridgeEvent(
+                    request_text=request_text,
+                    kind="status",
+                    text="↻ Retrying with structured tool fallback...",
+                    created_at=time.time(),
+                )
+            )
+        retry_argv = self._build_structured_retry_command(argv)
+        retry_env = dict(env)
+        retry_env["CLAW_TOOL_CALL_STYLE"] = "gemma-json"
+        retry_started = time.time()
+        retry_proc: subprocess.Popen[str] | None = None
+        try:
+            retry_proc = subprocess.Popen(
+                retry_argv,
+                cwd=self.project_root.parent,
+                env=retry_env,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                start_new_session=True,
+            )
+            with self._lock:
+                self._active[retry_proc.pid] = retry_proc
+            self.lifecycle.register_process("claw-cli-retry", retry_proc.pid, retry_argv, self.project_root.parent)
+            stdout, stderr = retry_proc.communicate()
+            result = CommandResult(
+                request_text=request_text,
+                argv=retry_argv,
+                exit_code=retry_proc.returncode,
+                stdout=(stdout or "").strip(),
+                stderr=(stderr or "").strip(),
+                started_at=retry_started,
+                finished_at=time.time(),
+                pid=retry_proc.pid,
+                parsed_stdout=self._try_parse_json(stdout),
+            )
+            self._append_history(
+                f"structured fallback[{result.exit_code}] {Path(retry_argv[0]).name} · {result.duration_seconds:.2f}s"
+            )
+            return result
+        except Exception as exc:
+            self._append_history(f"structured fallback failed: {exc}")
+            return None
+        finally:
+            if retry_proc is not None:
+                self.lifecycle.unregister_process(retry_proc.pid)
+                with self._lock:
+                    self._active.pop(retry_proc.pid, None)
+
+    def _build_structured_retry_command(self, argv: list[str]) -> list[str]:
+        retry = [argv[0]]
+        inserted = False
+        for item in argv[1:]:
+            if not inserted and item == "prompt":
+                retry.extend(["--output-format", "json"])
+                inserted = True
+            retry.append(item)
+        if not inserted:
+            retry.extend(["--output-format", "json"])
+        return retry
 
     @staticmethod
     def _strip_terminal_controls(text: str) -> str:

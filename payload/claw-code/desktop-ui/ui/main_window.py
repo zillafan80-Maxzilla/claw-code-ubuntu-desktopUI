@@ -762,6 +762,7 @@ class MainWindow(tk.Tk):
         sidebar_shell = ttk.Frame(root, style="Sidebar.TFrame")
         sidebar_shell.grid(row=0, column=1, sticky="nsew")
         sidebar_shell.columnconfigure(0, weight=1)
+        sidebar_shell.columnconfigure(1, weight=0, minsize=24)
         sidebar_shell.rowconfigure(0, weight=1)
 
         self.sidebar_canvas = tk.Canvas(
@@ -771,9 +772,32 @@ class MainWindow(tk.Tk):
             borderwidth=0,
         )
         self.sidebar_canvas.grid(row=0, column=0, sticky="nsew")
-        sidebar_scrollbar = ttk.Scrollbar(sidebar_shell, orient="vertical", command=self.sidebar_canvas.yview)
-        sidebar_scrollbar.grid(row=0, column=1, sticky="ns")
-        self.sidebar_canvas.configure(yscrollcommand=sidebar_scrollbar.set)
+        scrollbar_track = tk.Frame(
+            sidebar_shell,
+            background=PALETTE["base1"],
+            highlightthickness=1,
+            highlightbackground=PALETTE["base00"],
+            width=20,
+        )
+        scrollbar_track.grid(row=0, column=1, sticky="ns", padx=(6, 0))
+        scrollbar_track.grid_propagate(False)
+        scrollbar_track.rowconfigure(0, weight=1)
+        scrollbar_track.columnconfigure(0, weight=1)
+
+        self.sidebar_scrollbar = tk.Scrollbar(
+            scrollbar_track,
+            orient="vertical",
+            command=self.sidebar_canvas.yview,
+            width=18,
+            background=PALETTE["yellow"],
+            troughcolor=PALETTE["base2"],
+            activebackground=PALETTE["orange"],
+            highlightthickness=0,
+            bd=0,
+            relief="flat",
+        )
+        self.sidebar_scrollbar.grid(row=0, column=0, sticky="ns")
+        self.sidebar_canvas.configure(yscrollcommand=self.sidebar_scrollbar.set)
 
         sidebar = ttk.Frame(self.sidebar_canvas, style="Sidebar.TFrame", padding=18)
         sidebar.columnconfigure(0, weight=1)

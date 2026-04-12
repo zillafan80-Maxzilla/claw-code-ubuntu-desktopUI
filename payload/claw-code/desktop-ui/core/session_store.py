@@ -12,6 +12,21 @@ def _now_ms() -> int:
     return int(time.time() * 1000)
 
 
+def _looks_like_raw_tool_stub(text: str) -> bool:
+    lowered = text.strip().lower()
+    if not lowered:
+        return False
+    return (
+        lowered.startswith('{"type: tool_call')
+        or lowered.startswith('{"type":"tool_call"')
+        or lowered.startswith("{“type")
+        or '\nname: bash' in lowered
+        or '\nname: websearch' in lowered
+        or '"name": "bash"' in lowered
+        or '"name": "websearch"' in lowered
+    )
+
+
 @dataclass
 class SessionMessage:
     role: str
@@ -138,7 +153,10 @@ class DesktopSessionStore:
                     if isinstance(output, str) and output.strip():
                         text_parts.append(output.strip())
             if text_parts:
-                messages.append(SessionMessage(role=role, text="\n\n".join(text_parts).strip()))
+                combined = "\n\n".join(text_parts).strip()
+                if role == "assistant" and _looks_like_raw_tool_stub(combined):
+                    continue
+                messages.append(SessionMessage(role=role, text=combined))
         return DesktopSession(
             session_id=session_id,
             path=path,
@@ -179,6 +197,8 @@ class DesktopSessionStore:
                 )
             )
         for message in session.messages:
+            if message.role == "assistant" and _looks_like_raw_tool_stub(message.text):
+                continue
             lines.append(
                 json.dumps(
                     {
