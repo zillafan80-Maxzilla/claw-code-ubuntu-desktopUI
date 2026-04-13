@@ -126,8 +126,9 @@ class ClawBridge:
         request_text: str,
         on_complete: Callable[[CommandResult], None],
         on_event: Callable[[BridgeEvent], None] | None = None,
+        settings_override: DesktopSettings | None = None,
     ) -> None:
-        settings = self.current_settings()
+        settings = settings_override or self.current_settings()
         argv = self._build_command(request_text, settings)
         env = self._build_env(settings)
         started_at = time.time()

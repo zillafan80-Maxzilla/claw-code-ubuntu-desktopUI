@@ -45,6 +45,7 @@ class ChatWidget(ttk.Frame):
         self._composer_title: ttk.Label | None = None
         self._chip_buttons: list[ttk.Button] = []
         self._chip_values: list[str] = []
+        self._transcript_menu: tk.Menu | None = None
 
         header = ttk.Frame(self, style="Shell.TFrame")
         header.grid(row=0, column=0, sticky="ew", pady=(0, 12))
@@ -137,6 +138,7 @@ class ChatWidget(ttk.Frame):
         self.transcript_text.bind("<Control-A>", self._select_all)
         self.transcript_text.bind("<Control-c>", self._copy_selected_or_all)
         self.transcript_text.bind("<Button-3>", self._show_transcript_menu)
+        self.transcript_text.bind("<Button-1>", self._dismiss_transcript_menu, add="+")
         self.transcript_text.configure(state="disabled")
         self._configure_transcript_tags()
 
@@ -434,12 +436,27 @@ class ChatWidget(ttk.Frame):
         return "break"
 
     def _show_transcript_menu(self, event) -> str:
+        self._hide_transcript_menu()
         menu = tk.Menu(self, tearoff=False)
         menu.add_command(label="Copy", command=self._copy_selected_or_all)
         menu.add_command(label="Select All", command=self._select_all)
+        self._transcript_menu = menu
         menu.tk_popup(event.x_root, event.y_root)
         menu.grab_release()
         return "break"
+
+    def _dismiss_transcript_menu(self, _event=None) -> None:
+        self._hide_transcript_menu()
+
+    def _hide_transcript_menu(self) -> None:
+        if self._transcript_menu is None:
+            return
+        try:
+            self._transcript_menu.unpost()
+            self._transcript_menu.destroy()
+        except tk.TclError:
+            pass
+        self._transcript_menu = None
 
     @staticmethod
     def _format_block(text: str, title: str | None) -> str:

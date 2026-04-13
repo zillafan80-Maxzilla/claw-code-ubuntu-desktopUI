@@ -1639,6 +1639,7 @@ class MainWindow(tk.Tk):
         self._chat_add(request, role="user", title=self._t("user_request_title"))
         self.status_var.set(self._t("status_running"))
         self.chat.set_runtime_state("running", self._t("runstate_running"))
+        current_settings = self._current_form_settings()
         try:
             self.pending_messages.setdefault(request, []).append(
                 {
@@ -1650,7 +1651,12 @@ class MainWindow(tk.Tk):
                 }
             )
             self._tick_pending_message(request)
-            self.bridge.submit(request, self.results.put, self.results.put)
+            self.bridge.submit(
+                request,
+                self.results.put,
+                self.results.put,
+                settings_override=current_settings,
+            )
             self._refresh_log()
             self._refresh_process_list()
         except Exception as exc:
