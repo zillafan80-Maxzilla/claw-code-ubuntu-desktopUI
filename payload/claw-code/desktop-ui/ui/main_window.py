@@ -40,8 +40,8 @@ PALETTE = {
     "magenta": "#d33682",
 }
 
-APP_VERSION = "2.2"
-APP_VERSION_NPM = "2.2.0"
+APP_VERSION = "2.3"
+APP_VERSION_NPM = "2.3.0"
 NPM_PACKAGE_NAME = "claw-code-ubuntu-desktopui"
 GITHUB_REPO = "zillafan80-Maxzilla/claw-code-ubuntu-desktopUI"
 GITHUB_RAW_PACKAGE_JSON = f"https://raw.githubusercontent.com/{GITHUB_REPO}/main/package.json"
@@ -54,6 +54,34 @@ LANGUAGE_LABELS = {
     "ko": "한국어",
     "zh": "中文",
 }
+
+BUNDLED_SKILLS = [
+    ("pretext", "Reference", "PreTeXt authoring, schema, publication, and multi-format build workflows."),
+    ("html-in-canvas", "Reference", "WICG HTML-in-Canvas proposal, canvas and DOM embedding, OffscreenCanvas, and accessibility."),
+    ("karpathy-guidelines", "Guidelines", "Behavioral guardrails for simpler plans, surgical edits, and explicit verification."),
+    ("markitdown", "Reference", "Document-to-Markdown conversion, ingestion, and normalization workflows."),
+    ("openmaic", "Workflow", "OpenMAIC setup, startup modes, classroom generation, and teaching workflows."),
+    ("fmhy", "Reference", "FMHY repository structure, taxonomy, and curated resource navigation."),
+    ("archon-agent-browser", "Archon", "Browser automation and data extraction."),
+    ("archon-archon", "Archon", "Core Archon workflow usage."),
+    ("archon-archon-dev", "Archon", "Archon development workflow guidance."),
+    ("archon-docker-extend", "Archon", "Docker customization workflow."),
+    ("archon-playwright-cli", "Archon", "Playwright-based browser automation."),
+    ("archon-release", "Archon", "Release preparation and versioning flow."),
+    ("archon-remotion-best-practices", "Archon", "Remotion and React video best practices."),
+    ("archon-replicate-issue", "Archon", "Issue reproduction workflow."),
+    ("archon-rulecheck", "Archon", "Rule auditing and repair workflow."),
+    ("archon-save-task-list", "Archon", "Task list persistence across runs."),
+    ("archon-test-release", "Archon", "Released binary validation."),
+    ("archon-triage", "Archon", "GitHub issue triage workflow."),
+    ("archon-validate-ui", "Archon", "Comprehensive UI validation workflow."),
+    ("ccbp-agent-browser", "CCBP", "Browser automation."),
+    ("ccbp-time-fetcher", "CCBP", "Time retrieval workflow."),
+    ("ccbp-time-skill", "CCBP", "PKT time response helper."),
+    ("ccbp-time-svg-creator", "CCBP", "Time card SVG generation."),
+    ("ccbp-weather-fetcher", "CCBP", "Weather retrieval workflow."),
+    ("ccbp-weather-svg-creator", "CCBP", "Weather card SVG generation."),
+]
 
 I18N = {
     "en": {
@@ -81,9 +109,12 @@ I18N = {
         "view_processes": "Refresh Process View",
         "view_logs": "Refresh Execution Log",
         "help_commands": "Command Help",
+        "help_builtins": "Built-in Skills",
         "help_update": "Update Desktop Components",
         "help_tooling": "Tool Calling Adapter Notes",
         "help_version": "Current Version: {version}",
+        "builtins_title": "Built-in Skills",
+        "builtins_intro": "The desktop package ships a default bundled skill set under .claw/skills. Claw Code can route directly to these skills when the task matches.",
         "session_new": "New Session",
         "session_save": "Save Session Now",
         "session_open": "Open Selected Session",
@@ -221,9 +252,12 @@ I18N = {
         "view_processes": "プロセス表示を更新",
         "view_logs": "実行ログを更新",
         "help_commands": "コマンドヘルプ",
+        "help_builtins": "内蔵スキル一覧",
         "help_update": "デスクトップコンポーネントを更新",
         "help_tooling": "ツール呼び出し適応の説明",
         "help_version": "現在のバージョン: {version}",
+        "builtins_title": "内蔵スキル一覧",
+        "builtins_intro": "デスクトップパッケージには `.claw/skills` 配下へ既定のスキル群が同梱されています。タスクに合えば Claw Code がそれらを直接利用できます。",
         "session_new": "新しいセッション",
         "session_save": "今のセッションを保存",
         "session_open": "選択中のセッションを開く",
@@ -361,9 +395,12 @@ I18N = {
         "view_processes": "프로세스 보기 새로고침",
         "view_logs": "실행 로그 새로고침",
         "help_commands": "명령 도움말",
+        "help_builtins": "내장 스킬 목록",
         "help_update": "데스크톱 구성요소 업데이트",
         "help_tooling": "도구 호출 적응 안내",
         "help_version": "현재 버전: {version}",
+        "builtins_title": "내장 스킬 목록",
+        "builtins_intro": "데스크톱 패키지는 `.claw/skills` 아래 기본 번들 스킬 세트를 함께 배포합니다. 작업이 맞으면 Claw Code가 이 스킬들을 직접 라우팅할 수 있습니다.",
         "session_new": "새 세션",
         "session_save": "현재 세션 저장",
         "session_open": "선택한 세션 열기",
@@ -501,9 +538,12 @@ I18N = {
         "view_processes": "刷新进程视图",
         "view_logs": "刷新执行日志",
         "help_commands": "命令帮助",
+        "help_builtins": "内置技能清单",
         "help_update": "更新桌面组件",
         "help_tooling": "关于工具调用适配",
         "help_version": "当前版本号：{version}",
+        "builtins_title": "内置技能清单",
+        "builtins_intro": "桌面安装包现在会把一组默认技能部署到 `.claw/skills`。当任务域匹配时，Claw Code 可以直接路由到这些技能。",
         "session_new": "新建会话",
         "session_save": "立即保存当前会话",
         "session_open": "打开所选会话",
@@ -776,6 +816,7 @@ class MainWindow(tk.Tk):
 
         help_menu = tk.Menu(menubar, tearoff=False, background=PALETTE["base2"], foreground=PALETTE["base01"], font=menu_font)
         help_menu.add_command(label=self._t("help_commands"), command=lambda: self._submit_request("/help"))
+        help_menu.add_command(label=self._t("help_builtins"), command=self._show_bundled_skills)
         help_menu.add_command(label=self._t("help_update"), command=self._run_update)
         help_menu.add_command(label=self._t("help_tooling"), command=self._show_tool_help)
         help_menu.add_separator()
@@ -1548,6 +1589,65 @@ class MainWindow(tk.Tk):
 
     def _show_tool_help(self) -> None:
         messagebox.showinfo(self._t("tool_help_title"), self._t("tool_help_message"))
+
+    def _show_bundled_skills(self) -> None:
+        window = tk.Toplevel(self)
+        window.title(self._t("builtins_title"))
+        window.geometry("980x620")
+        window.minsize(720, 420)
+        window.configure(background=PALETTE["base3"])
+
+        shell = tk.Frame(window, background=PALETTE["base3"])
+        shell.pack(fill="both", expand=True, padx=18, pady=18)
+
+        intro = tk.Label(
+            shell,
+            text=self._t("builtins_intro"),
+            justify="left",
+            anchor="w",
+            wraplength=900,
+            background=PALETTE["base3"],
+            foreground=PALETTE["base01"],
+            font=("Noto Sans CJK SC", 9),
+        )
+        intro.pack(fill="x", pady=(0, 10))
+
+        body = tk.Frame(shell, background=PALETTE["base3"])
+        body.pack(fill="both", expand=True)
+
+        text = tk.Text(
+            body,
+            wrap="word",
+            background=PALETTE["base2"],
+            foreground=PALETTE["base01"],
+            insertbackground=PALETTE["base01"],
+            relief="flat",
+            borderwidth=0,
+            font=("Noto Sans Mono CJK SC", 9),
+            padx=12,
+            pady=12,
+        )
+        scrollbar = tk.Scrollbar(
+            body,
+            orient="vertical",
+            command=text.yview,
+            width=16,
+            background=PALETTE["yellow"],
+            troughcolor=PALETTE["base2"],
+            activebackground=PALETTE["orange"],
+            highlightthickness=0,
+            bd=0,
+            relief="flat",
+        )
+        text.configure(yscrollcommand=scrollbar.set)
+        text.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+
+        lines = []
+        for name, category, summary in BUNDLED_SKILLS:
+            lines.append(f"{name}\n  [{category}] {summary}\n")
+        text.insert("1.0", "\n".join(lines).strip() + "\n")
+        text.configure(state="disabled")
 
     def _retry_last_request(self) -> None:
         if not self._last_user_request:

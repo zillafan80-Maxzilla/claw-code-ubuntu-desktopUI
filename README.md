@@ -1,9 +1,10 @@
 # claw-code-ubuntu-desktopUI
 
-当前发布版本 / Current release: `v2.2`
+当前发布版本 / Current release: `v2.3`
 
 最新仓库更新 / Latest repository update:
 
+- `2026-04-13`: 发布 `v2.3`，帮助菜单新增“内置技能清单”页面，可直接查看默认 bundled skills 及用途摘要
 - `2026-04-13`: 默认发布包现在内置 `.claw/skills`，安装桌面 UI 时会同步部署默认技能集到目标 `claw-code` 根目录
 - `2026-04-13`: 默认 system prompt 与项目 `.claw/instructions.md` 已加入 bundled skill index，方便 `claw code` 直接按技能名和任务域调取
 - `2026-04-13`: 修复桌面端“允许系统权限”只在保存后才生效的问题，提交时现在直接使用界面当前权限状态
@@ -50,6 +51,7 @@
 - 回复内容自动抽取自然语言正文，不显示底层 JSON 标签噪音
 - 桌面对话链路已补齐工具执行与任务连续工作能力
 - 帮助菜单内置“更新桌面组件”入口
+- 帮助菜单新增“内置技能清单”页面，可直接查看默认 bundled skills 及用途摘要
 - 默认语言为英文，可在“语言”菜单中即时切换
 - UI 内置项目级 system prompt 编辑器，可直接管理 `.claw/instructions.md`
 - 默认 system prompt 已按 `claw code` 的 CLI/工具/验证工作流做适配，不再依赖把提示词拼进用户消息
@@ -100,7 +102,7 @@ claw-code-ubuntu-desktopui-install
 7. 自动创建 `~/Desktop/claw-code.desktop` 快捷方式。
 8. 若未找到 `claw-code`，则提示是否安装本地版本。
 9. 已安装后，可在桌面窗口中使用“帮助 > 更新桌面组件”直接拉取最新发布版并重新部署。
-10. 自 `1.2` 起的用户打开桌面窗口后，会自动检查是否存在更新；如发现 `2.2` 或更高版本，会弹出更新提示并可直接执行升级。
+10. 自 `1.2` 起的用户打开桌面窗口后，会自动检查是否存在更新；如发现 `2.3` 或更高版本，会弹出更新提示并可直接执行升级。
 11. 安装器会把发布包自带的 `.claw/skills` 与 `.claw/instructions.md` 同步到目标 `claw-code` 根目录。
 
 ### 默认探测的模型接口
@@ -192,6 +194,7 @@ Current UI capabilities include:
 - Automatic extraction of natural-language reply content instead of raw JSON metadata noise
 - Desktop-side fixes for tool execution and sustained multi-step task flow
 - Built-in `Help > Update Desktop Components` action
+- Built-in `Help > Built-in Skills` page for browsing the default bundled skills and their intended usage
 - English as the default language with live switching through the `Language` menu
 - Built-in project-level system prompt editor that writes directly to `.claw/instructions.md`
 - The default system prompt is adapted for `claw code` instead of being injected into user messages
@@ -242,7 +245,7 @@ The installer performs the following steps:
 7. Create `~/Desktop/claw-code.desktop`.
 8. If `claw-code` is not found, prompt to install a local bundled version.
 9. After installation, the desktop window can self-update through `Help > Update Desktop Components`.
-10. Users coming from `1.2` will see an upgrade prompt on startup when `2.2` or newer is available, and can update in place.
+10. Users coming from `1.2` will see an upgrade prompt on startup when `2.3` or newer is available, and can update in place.
 11. The installer also deploys the bundled `.claw/skills` and `.claw/instructions.md` into the target `claw-code` root.
 
 ### Probed model endpoints
