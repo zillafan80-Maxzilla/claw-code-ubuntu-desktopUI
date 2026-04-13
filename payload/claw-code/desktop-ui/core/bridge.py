@@ -14,7 +14,8 @@ from typing import Callable
 from core.lifecycle import LifecycleManager
 from core.settings import DesktopSettings, DesktopSettingsStore
 
-STREAM_SILENT_TIMEOUT_SECONDS = 45.0
+INITIAL_STREAM_SILENT_TIMEOUT_SECONDS = 45.0
+ACTIVE_STREAM_SILENT_TIMEOUT_SECONDS = 180.0
 COMMAND_TIMEOUT_SECONDS = 180.0
 JSON_TIMEOUT_SECONDS = 90.0
 
@@ -49,6 +50,7 @@ class StreamRunState:
     last_status: str = ""
     tool_log: str = ""
     saw_tool_event: bool = False
+    saw_any_event: bool = False
     cli_lines: list[str] | None = None
 
 
@@ -443,10 +445,20 @@ class ClawBridge:
             now = time.time()
             if exit_code is not None:
                 break
-            if now - last_output_at[0] >= STREAM_SILENT_TIMEOUT_SECONDS:
-                timeout_reason[0] = (
-                    f"Desktop bridge timed out after {STREAM_SILENT_TIMEOUT_SECONDS:.0f}s without any model or tool output."
-                )
+            silent_timeout = (
+                ACTIVE_STREAM_SILENT_TIMEOUT_SECONDS
+                if stream_state.saw_any_event
+                else INITIAL_STREAM_SILENT_TIMEOUT_SECONDS
+            )
+            if now - last_output_at[0] >= silent_timeout:
+                if stream_state.saw_any_event:
+                    timeout_reason[0] = (
+                        f"Desktop bridge timed out after {silent_timeout:.0f}s without further model or tool output."
+                    )
+                else:
+                    timeout_reason[0] = (
+                        f"Desktop bridge timed out after {silent_timeout:.0f}s without any model or tool output."
+                    )
                 self._terminate_process(proc)
                 break
             if now - started_at >= COMMAND_TIMEOUT_SECONDS:
@@ -506,6 +518,7 @@ class ClawBridge:
             text = text[text.find("✘ ") :]
         if not stream_state.cli_lines or stream_state.cli_lines[-1] != text:
             stream_state.cli_lines.append(text)
+            stream_state.saw_any_event = True
             on_event(
                 BridgeEvent(
                     request_text=request_text,
@@ -517,6 +530,7 @@ class ClawBridge:
         if self._is_progress_line(text):
             if text != stream_state.last_status:
                 stream_state.last_status = text
+                stream_state.saw_any_event = True
                 on_event(
                     BridgeEvent(
                         request_text=request_text,
@@ -532,6 +546,7 @@ class ClawBridge:
             if tool_line not in current:
                 stream_state.tool_log = "\n".join([*current, tool_line]).strip()
                 stream_state.saw_tool_event = True
+                stream_state.saw_any_event = True
                 on_event(
                     BridgeEvent(
                         request_text=request_text,
