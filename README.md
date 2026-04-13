@@ -10,6 +10,8 @@
 - `2026-04-13`: 刷新内置 `claw` 二进制，补上 Gemma 工具调用坏 JSON 恢复
 - `2026-04-13`: `WebSearch` 继续增强为 `Brave -> Google -> Bing RSS -> DuckDuckGo HTML -> DuckDuckGo Lite -> weather-direct`
 - `2026-04-13`: 当搜索引擎全部失败时，天气类查询会自动降级到直接天气源，而不是直接报全后端失败
+- `2026-04-13`: 新增 UI 侧默认 system prompt 管理，桌面设置可直接编辑并写入项目根目录 `.claw/instructions.md`
+- `2026-04-13`: 默认 system prompt 已参考 GitHub 上公开的 `AGENTS.md` 结构与 Agents SDK 的 instructions/tools/guardrails 概念，并针对 `claw code` 做了工程化适配
 
 ## 中文说明
 
@@ -47,6 +49,8 @@
 - 桌面对话链路已补齐工具执行与任务连续工作能力
 - 帮助菜单内置“更新桌面组件”入口
 - 默认语言为英文，可在“语言”菜单中即时切换
+- UI 内置项目级 system prompt 编辑器，可直接管理 `.claw/instructions.md`
+- 默认 system prompt 已按 `claw code` 的 CLI/工具/验证工作流做适配，不再依赖把提示词拼进用户消息
 - 启动时自动检查 npm 最新版本，旧版用户可看到更新提示并直接升级
 - 等待计时与运行状态只显示在状态区域，不再每秒写入对话正文污染上下文
 - 桌面端提交请求时现在直接使用界面当前权限状态，不再要求先手动保存设置
@@ -184,6 +188,8 @@ Current UI capabilities include:
 - Desktop-side fixes for tool execution and sustained multi-step task flow
 - Built-in `Help > Update Desktop Components` action
 - English as the default language with live switching through the `Language` menu
+- Built-in project-level system prompt editor that writes directly to `.claw/instructions.md`
+- The default system prompt is adapted for `claw code` instead of being injected into user messages
 - Startup npm version checks so older installs can see an update prompt and upgrade directly
 - Waiting timers and silent-running indicators now stay in the status area instead of rewriting chat transcript content every second
 - Desktop submissions now use the current UI permission toggles immediately instead of requiring a prior manual save

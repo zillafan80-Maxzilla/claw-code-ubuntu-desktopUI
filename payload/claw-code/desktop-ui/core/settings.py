@@ -5,6 +5,8 @@ import os
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
+from core.system_prompt import DEFAULT_CLAW_SYSTEM_PROMPT
+
 
 @dataclass
 class DesktopSettings:
@@ -15,6 +17,7 @@ class DesktopSettings:
     locale: str = "en"
     high_privilege: bool = False
     autonomous_execution: bool = False
+    system_prompt: str = DEFAULT_CLAW_SYSTEM_PROMPT
 
     def to_env(self) -> dict[str, str]:
         return {
@@ -103,6 +106,7 @@ class DesktopSettingsStore:
             locale=os.environ.get("CLAW_DESKTOP_LOCALE", DesktopSettings.locale),
             high_privilege=os.environ.get("CLAW_DESKTOP_HIGH_PRIVILEGE", "0") in {"1", "true", "yes"},
             autonomous_execution=os.environ.get("CLAW_DESKTOP_AUTONOMOUS", "0") in {"1", "true", "yes"},
+            system_prompt=DEFAULT_CLAW_SYSTEM_PROMPT,
         )
         if not self.path.exists():
             return defaults
@@ -118,6 +122,7 @@ class DesktopSettingsStore:
             locale=str(payload.get("locale") or defaults.locale or "en"),
             high_privilege=bool(payload.get("high_privilege", defaults.high_privilege)),
             autonomous_execution=bool(payload.get("autonomous_execution", defaults.autonomous_execution)),
+            system_prompt=str(payload.get("system_prompt") or defaults.system_prompt),
         )
 
     def save(self, settings: DesktopSettings) -> None:

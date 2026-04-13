@@ -16,6 +16,12 @@ from core.bridge import BridgeEvent, ClawBridge, CommandResult
 from core.lifecycle import LifecycleManager
 from core.session_store import DesktopSession, DesktopSessionStore, SessionMessage, SessionSummary
 from core.settings import DesktopSettings, DesktopSettingsStore
+from core.system_prompt import (
+    DEFAULT_CLAW_SYSTEM_PROMPT,
+    ensure_project_system_prompt,
+    load_project_system_prompt,
+    save_project_system_prompt,
+)
 from ui.chat_widget import ChatWidget
 
 
@@ -117,6 +123,9 @@ I18N = {
         "config_base_url": "Base URL",
         "config_api_key": "API Key",
         "config_tool_style": "Tool Adapter",
+        "config_system_prompt": "System Prompt",
+        "config_system_prompt_hint": "Project default instructions loaded by claw from .claw/instructions.md.",
+        "config_reset_prompt": "Reset Default Prompt",
         "config_save": "Save And Apply Now",
         "quick_panel": "Quick Commands",
         "quick_status": "Status",
@@ -179,8 +188,11 @@ I18N = {
         "config_error_model": "Model name cannot be empty.",
         "config_error_base_url": "Base URL must start with http:// or https://.",
         "config_error_tool_style": "Tool adapter must be auto, native, or gemma-json.",
+        "config_error_system_prompt": "System prompt cannot be empty.",
         "settings_saved_message": "Model settings saved.\nModel: {model}\nEndpoint: {base_url}\nTool adapter: {tool_style}\nLanguage: {language}\nHigh privilege: {high_privilege}\nAutonomous execution: {autonomous_execution}",
         "settings_saved_title": "Configuration Applied",
+        "settings_prompt_saved_title": "System Prompt Installed",
+        "settings_prompt_saved_body": "Saved the project default instructions to:\n{path}",
         "cleanup_error_title": "Cleanup Error",
         "cleanup_error_body": "An error occurred while cleaning processes:\n{error}\n\nClose anyway?",
     },
@@ -251,6 +263,9 @@ I18N = {
         "config_base_url": "ベース URL",
         "config_api_key": "API キー",
         "config_tool_style": "ツール適応",
+        "config_system_prompt": "システムプロンプト",
+        "config_system_prompt_hint": "claw が .claw/instructions.md から読み込む既定のプロジェクト指示です。",
+        "config_reset_prompt": "既定プロンプトに戻す",
         "config_save": "保存してすぐ適用",
         "quick_panel": "クイックコマンド",
         "quick_status": "状態",
@@ -313,8 +328,11 @@ I18N = {
         "config_error_model": "モデル名は空にできません。",
         "config_error_base_url": "ベース URL は http:// または https:// で始まる必要があります。",
         "config_error_tool_style": "ツール適応は auto、native、gemma-json のいずれかである必要があります。",
+        "config_error_system_prompt": "システムプロンプトは空にできません。",
         "settings_saved_message": "モデル設定を保存しました。\nモデル: {model}\nエンドポイント: {base_url}\nツール適応: {tool_style}\n言語: {language}\n高権限: {high_privilege}\n自律実行: {autonomous_execution}",
         "settings_saved_title": "設定を適用しました",
+        "settings_prompt_saved_title": "システムプロンプトを適用",
+        "settings_prompt_saved_body": "既定のプロジェクト指示を次に保存しました:\n{path}",
         "cleanup_error_title": "クリーンアップエラー",
         "cleanup_error_body": "プロセスのクリーンアップ中にエラーが発生しました:\n{error}\n\nそれでも閉じますか？",
     },
@@ -385,6 +403,9 @@ I18N = {
         "config_base_url": "기본 URL",
         "config_api_key": "API 키",
         "config_tool_style": "도구 적응",
+        "config_system_prompt": "시스템 프롬프트",
+        "config_system_prompt_hint": "claw가 .claw/instructions.md 에서 읽는 기본 프로젝트 지침입니다.",
+        "config_reset_prompt": "기본 프롬프트로 재설정",
         "config_save": "저장 후 즉시 적용",
         "quick_panel": "빠른 명령",
         "quick_status": "상태",
@@ -447,8 +468,11 @@ I18N = {
         "config_error_model": "모델 이름은 비워 둘 수 없습니다.",
         "config_error_base_url": "기본 URL은 http:// 또는 https:// 로 시작해야 합니다.",
         "config_error_tool_style": "도구 적응은 auto, native, gemma-json 중 하나여야 합니다.",
+        "config_error_system_prompt": "시스템 프롬프트는 비워둘 수 없습니다.",
         "settings_saved_message": "모델 설정이 저장되었습니다.\n모델: {model}\n엔드포인트: {base_url}\n도구 적응: {tool_style}\n언어: {language}\n고권한: {high_privilege}\n자율 실행: {autonomous_execution}",
         "settings_saved_title": "설정 적용됨",
+        "settings_prompt_saved_title": "시스템 프롬프트 적용됨",
+        "settings_prompt_saved_body": "기본 프로젝트 지침을 다음 경로에 저장했습니다:\n{path}",
         "cleanup_error_title": "정리 오류",
         "cleanup_error_body": "프로세스 정리 중 오류가 발생했습니다:\n{error}\n\n그래도 종료하시겠습니까?",
     },
@@ -519,6 +543,9 @@ I18N = {
         "config_base_url": "接口基址",
         "config_api_key": "API 密钥",
         "config_tool_style": "工具适配",
+        "config_system_prompt": "系统提示词",
+        "config_system_prompt_hint": "这是 claw 会从 .claw/instructions.md 读取的项目默认指令。",
+        "config_reset_prompt": "恢复默认提示词",
         "config_save": "保存并立即应用",
         "quick_panel": "快捷命令",
         "quick_status": "状态",
@@ -581,8 +608,11 @@ I18N = {
         "config_error_model": "模型名称不能为空。",
         "config_error_base_url": "接口基址必须以 http:// 或 https:// 开头。",
         "config_error_tool_style": "工具适配模式只能是 auto、native 或 gemma-json。",
+        "config_error_system_prompt": "系统提示词不能为空。",
         "settings_saved_message": "模型配置已保存。\n模型：{model}\n接口：{base_url}\n工具适配：{tool_style}\n语言：{language}\n高权限：{high_privilege}\n自动执行：{autonomous_execution}",
         "settings_saved_title": "配置已应用",
+        "settings_prompt_saved_title": "系统提示词已安装",
+        "settings_prompt_saved_body": "已将项目默认指令保存到：\n{path}",
         "cleanup_error_title": "清理异常",
         "cleanup_error_body": "清理进程时发生异常：\n{error}\n\n仍要关闭吗？",
     },
@@ -623,6 +653,7 @@ class MainWindow(tk.Tk):
         self.base_url_entry_var = tk.StringVar()
         self.api_key_entry_var = tk.StringVar()
         self.tool_style_entry_var = tk.StringVar()
+        self.system_prompt_text: tk.Text | None = None
 
         self.geometry("1520x980")
         self.minsize(520, 360)
@@ -630,6 +661,7 @@ class MainWindow(tk.Tk):
         self.protocol("WM_DELETE_WINDOW", self._on_close)
 
         self._build_style()
+        self._seed_system_prompt()
         self._rebuild_ui(preserve_chat=False)
         self._refresh_session_list()
         self.after(120, self._drain_results)
@@ -922,7 +954,46 @@ class MainWindow(tk.Tk):
         ttk.Label(config_panel, text=self._t("config_tool_style"), style="Muted.TLabel").grid(row=3, column=0, sticky="w", pady=(8, 0))
         tool_style = ttk.Combobox(config_panel, textvariable=self.tool_style_entry_var, state="readonly", values=["auto", "native", "gemma-json"])
         tool_style.grid(row=3, column=1, sticky="ew", pady=(8, 0))
-        ttk.Button(config_panel, text=self._t("config_save"), command=self._save_settings, style="Accent.TButton").grid(row=4, column=0, columnspan=2, sticky="ew", pady=(10, 0))
+        ttk.Label(config_panel, text=self._t("config_system_prompt"), style="Muted.TLabel").grid(row=4, column=0, sticky="nw", pady=(10, 0))
+        prompt_shell = tk.Frame(config_panel, background=PALETTE["base2"])
+        prompt_shell.grid(row=4, column=1, sticky="ew", pady=(10, 0))
+        prompt_shell.columnconfigure(0, weight=1)
+        prompt_shell.rowconfigure(0, weight=1)
+        self.system_prompt_text = tk.Text(
+            prompt_shell,
+            height=16,
+            wrap="word",
+            background=PALETTE["base3"],
+            foreground=PALETTE["base01"],
+            insertbackground=PALETTE["base01"],
+            borderwidth=1,
+            highlightthickness=1,
+            highlightbackground=PALETTE["base1"],
+            font=("DejaVu Sans Mono", 9),
+            padx=8,
+            pady=8,
+        )
+        self.system_prompt_text.grid(row=0, column=0, sticky="nsew")
+        prompt_scroll = tk.Scrollbar(
+            prompt_shell,
+            orient="vertical",
+            command=self.system_prompt_text.yview,
+            width=14,
+            background=PALETTE["yellow"],
+            troughcolor=PALETTE["base2"],
+            activebackground=PALETTE["orange"],
+            highlightthickness=0,
+            bd=0,
+            relief="flat",
+        )
+        prompt_scroll.grid(row=0, column=1, sticky="ns")
+        self.system_prompt_text.configure(yscrollcommand=prompt_scroll.set)
+        ttk.Label(config_panel, text=self._t("config_system_prompt_hint"), style="Muted.TLabel").grid(row=5, column=1, sticky="w", pady=(6, 0))
+        prompt_actions = ttk.Frame(config_panel, style="Sidebar.TFrame")
+        prompt_actions.grid(row=6, column=0, columnspan=2, sticky="ew", pady=(10, 0))
+        prompt_actions.columnconfigure((0, 1), weight=1)
+        ttk.Button(prompt_actions, text=self._t("config_reset_prompt"), command=self._reset_default_prompt).grid(row=0, column=0, sticky="ew", padx=(0, 4))
+        ttk.Button(prompt_actions, text=self._t("config_save"), command=self._save_settings, style="Accent.TButton").grid(row=0, column=1, sticky="ew", padx=(4, 0))
 
         quick_panel = ttk.LabelFrame(sidebar, text=self._t("quick_panel"), style="Panel.TLabelframe", padding=12)
         quick_panel.grid(row=3, column=0, sticky="ew", pady=(0, 10))
@@ -1125,6 +1196,23 @@ class MainWindow(tk.Tk):
         ttk.Label(parent, text=label, style="Muted.TLabel").grid(row=row, column=0, sticky="w", pady=(8 if row else 0, 0))
         entry = ttk.Entry(parent, textvariable=variable, show=show or "")
         entry.grid(row=row, column=1, sticky="ew", pady=(8 if row else 0, 0))
+
+    def _seed_system_prompt(self) -> None:
+        settings = self.settings_store.load()
+        prompt = ensure_project_system_prompt(
+            self.project_root.parent,
+            settings.system_prompt or DEFAULT_CLAW_SYSTEM_PROMPT,
+        )
+        if settings.system_prompt.strip() != prompt.strip():
+            settings.system_prompt = prompt
+            self.settings_store.save(settings)
+
+    def _current_prompt_text(self) -> str:
+        if self.system_prompt_text is None:
+            stored = self.settings_store.load().system_prompt
+            return stored.strip() or DEFAULT_CLAW_SYSTEM_PROMPT
+        text = self.system_prompt_text.get("1.0", "end").strip()
+        return text or DEFAULT_CLAW_SYSTEM_PROMPT
 
     def _chat_add(self, text: str, role: str, title: str | None = None) -> int:
         message_id = self.chat.add_message(text, role=role, title=title)
@@ -1339,6 +1427,11 @@ class MainWindow(tk.Tk):
 
     def _load_settings_into_form(self) -> None:
         settings = self.settings_store.load()
+        project_prompt = load_project_system_prompt(self.project_root.parent)
+        if project_prompt:
+            settings.system_prompt = project_prompt
+        elif not settings.system_prompt.strip():
+            settings.system_prompt = DEFAULT_CLAW_SYSTEM_PROMPT
         self.current_locale = self._normalize_locale(settings.locale)
         self.model_entry_var.set(settings.model)
         self.base_url_entry_var.set(settings.base_url)
@@ -1346,6 +1439,9 @@ class MainWindow(tk.Tk):
         self.tool_style_entry_var.set(settings.tool_call_style)
         self.high_privilege_var.set(settings.high_privilege)
         self.autonomous_execution_var.set(settings.autonomous_execution)
+        if self.system_prompt_text is not None:
+            self.system_prompt_text.delete("1.0", "end")
+            self.system_prompt_text.insert("1.0", settings.system_prompt)
         self._refresh_model_summary(settings)
         self._refresh_session_summary()
         self.active_var.set(self._t("busy_count", count=self.bridge.active_process_count()))
@@ -1369,6 +1465,7 @@ class MainWindow(tk.Tk):
             locale=self.current_locale,
             high_privilege=self.high_privilege_var.get(),
             autonomous_execution=self.autonomous_execution_var.get(),
+            system_prompt=self._current_prompt_text(),
         )
 
     def _save_settings(self) -> None:
@@ -1386,6 +1483,10 @@ class MainWindow(tk.Tk):
         if tool_style not in {"auto", "native", "gemma-json"}:
             messagebox.showerror(self._t("config_error_title"), self._t("config_error_tool_style"))
             return
+        system_prompt = self._current_prompt_text()
+        if not system_prompt.strip():
+            messagebox.showerror(self._t("config_error_title"), self._t("config_error_system_prompt"))
+            return
 
         settings = DesktopSettings(
             model=model,
@@ -1395,8 +1496,10 @@ class MainWindow(tk.Tk):
             locale=self.current_locale,
             high_privilege=self.high_privilege_var.get(),
             autonomous_execution=self.autonomous_execution_var.get(),
+            system_prompt=system_prompt,
         )
         self.settings_store.save(settings)
+        prompt_path = save_project_system_prompt(self.project_root.parent, settings.system_prompt)
         self._refresh_model_summary(settings)
         self._chat_add(
             self._t(
@@ -1411,11 +1514,22 @@ class MainWindow(tk.Tk):
             role="system",
             title=self._t("settings_saved_title"),
         )
+        self._chat_add(
+            self._t("settings_prompt_saved_body", path=str(prompt_path)),
+            role="system",
+            title=self._t("settings_prompt_saved_title"),
+        )
         self.status_var.set(self._t("status_saved"))
 
     def _set_tool_style(self, style: str) -> None:
         self.tool_style_entry_var.set(style)
         self._save_settings()
+
+    def _reset_default_prompt(self) -> None:
+        if self.system_prompt_text is None:
+            return
+        self.system_prompt_text.delete("1.0", "end")
+        self.system_prompt_text.insert("1.0", DEFAULT_CLAW_SYSTEM_PROMPT)
 
     def _set_locale(self, locale: str) -> None:
         normalized = self._normalize_locale(locale)
