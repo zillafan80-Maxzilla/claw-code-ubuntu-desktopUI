@@ -4,6 +4,9 @@
 
 最新仓库更新 / Latest repository update:
 
+- `2026-04-13`: 修复桌面端“允许系统权限”只在保存后才生效的问题，提交时现在直接使用界面当前权限状态
+- `2026-04-13`: 修复对话区右键复制菜单，左键点击后会立即收起
+- `2026-04-13`: 修复桌面 bridge 对已开始执行任务仍使用 45 秒静默超时的问题，出过首包后超时放宽到 180 秒
 - `2026-04-13`: 刷新内置 `claw` 二进制，补上 Gemma 工具调用坏 JSON 恢复
 - `2026-04-13`: `WebSearch` 继续增强为 `Brave -> Google -> Bing RSS -> DuckDuckGo HTML -> DuckDuckGo Lite -> weather-direct`
 - `2026-04-13`: 当搜索引擎全部失败时，天气类查询会自动降级到直接天气源，而不是直接报全后端失败
@@ -46,6 +49,9 @@
 - 默认语言为英文，可在“语言”菜单中即时切换
 - 启动时自动检查 npm 最新版本，旧版用户可看到更新提示并直接升级
 - 等待计时与运行状态只显示在状态区域，不再每秒写入对话正文污染上下文
+- 桌面端提交请求时现在直接使用界面当前权限状态，不再要求先手动保存设置
+- 已开始执行的任务不再被 45 秒静默超时误杀，bridge 会在首包后放宽等待时长
+- 对话区右键复制菜单支持左键点击后立即收起
 - WebSearch 增加搜索后端降级路径，不再只依赖单一 DuckDuckGo HTML 入口
 - WebSearch 现在优先尝试 Brave / Google / Bing RSS，再回退到 DuckDuckGo
 - 对天气类查询增加 direct weather fallback，避免搜索引擎全挂时直接失败
@@ -180,6 +186,9 @@ Current UI capabilities include:
 - English as the default language with live switching through the `Language` menu
 - Startup npm version checks so older installs can see an update prompt and upgrade directly
 - Waiting timers and silent-running indicators now stay in the status area instead of rewriting chat transcript content every second
+- Desktop submissions now use the current UI permission toggles immediately instead of requiring a prior manual save
+- The desktop bridge no longer kills already-running tasks after the old 45 second post-output silent timeout; it now uses a longer post-first-event window
+- The transcript right-click copy menu now dismisses immediately on left click
 - WebSearch now has backend fallback behavior instead of depending only on a single DuckDuckGo HTML endpoint
 - WebSearch now prefers Brave / Google / Bing RSS before falling back to DuckDuckGo
 - Weather queries now have a direct-weather fallback when search engines all fail
