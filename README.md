@@ -1,6 +1,6 @@
 # claw-code-ubuntu-desktopUI
 
-当前发布版本 / Current release: `v2.1`
+当前发布版本 / Current release: `v2.2`
 
 最新仓库更新 / Latest repository update:
 
@@ -10,8 +10,8 @@
 - `2026-04-13`: 刷新内置 `claw` 二进制，补上 Gemma 工具调用坏 JSON 恢复
 - `2026-04-13`: `WebSearch` 继续增强为 `Brave -> Google -> Bing RSS -> DuckDuckGo HTML -> DuckDuckGo Lite -> weather-direct`
 - `2026-04-13`: 当搜索引擎全部失败时，天气类查询会自动降级到直接天气源，而不是直接报全后端失败
-- `2026-04-13`: 新增 UI 侧默认 system prompt 管理，桌面设置可直接编辑并写入项目根目录 `.claw/instructions.md`
-- `2026-04-13`: 默认 system prompt 已参考 GitHub 上公开的 `AGENTS.md` 结构与 Agents SDK 的 instructions/tools/guardrails 概念，并针对 `claw code` 做了工程化适配
+- `2026-04-13`: 发布 `v2.2`，新增 UI 侧默认 system prompt 管理，桌面设置可直接编辑并写入项目根目录 `.claw/instructions.md`
+- `2026-04-13`: `v2.2` 默认 system prompt 已参考 GitHub 上公开的 `AGENTS.md` 结构与 Agents SDK 的 instructions/tools/guardrails 概念，并针对 `claw code` 做了工程化适配
 
 ## 中文说明
 
@@ -96,7 +96,7 @@ claw-code-ubuntu-desktopui-install
 7. 自动创建 `~/Desktop/claw-code.desktop` 快捷方式。
 8. 若未找到 `claw-code`，则提示是否安装本地版本。
 9. 已安装后，可在桌面窗口中使用“帮助 > 更新桌面组件”直接拉取最新发布版并重新部署。
-10. 自 `1.2` 起的用户打开桌面窗口后，会自动检查是否存在更新；如发现 `2.1` 或更高版本，会弹出更新提示并可直接执行升级。
+10. 自 `1.2` 起的用户打开桌面窗口后，会自动检查是否存在更新；如发现 `2.2` 或更高版本，会弹出更新提示并可直接执行升级。
 
 ### 默认探测的模型接口
 
@@ -235,7 +235,7 @@ The installer performs the following steps:
 7. Create `~/Desktop/claw-code.desktop`.
 8. If `claw-code` is not found, prompt to install a local bundled version.
 9. After installation, the desktop window can self-update through `Help > Update Desktop Components`.
-10. Users coming from `1.2` will see an upgrade prompt on startup when `2.1` or newer is available, and can update in place.
+10. Users coming from `1.2` will see an upgrade prompt on startup when `2.2` or newer is available, and can update in place.
 
 ### Probed model endpoints
 

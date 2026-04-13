@@ -40,8 +40,8 @@ PALETTE = {
     "magenta": "#d33682",
 }
 
-APP_VERSION = "2.1"
-APP_VERSION_NPM = "2.1.0"
+APP_VERSION = "2.2"
+APP_VERSION_NPM = "2.2.0"
 NPM_PACKAGE_NAME = "claw-code-ubuntu-desktopui"
 GITHUB_REPO = "zillafan80-Maxzilla/claw-code-ubuntu-desktopUI"
 GITHUB_RAW_PACKAGE_JSON = f"https://raw.githubusercontent.com/{GITHUB_REPO}/main/package.json"
