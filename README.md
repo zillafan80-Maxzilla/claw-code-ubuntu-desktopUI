@@ -2,6 +2,12 @@
 
 当前发布版本 / Current release: `v2.1`
 
+最新仓库更新 / Latest repository update:
+
+- `2026-04-13`: 刷新内置 `claw` 二进制，补上 Gemma 工具调用坏 JSON 恢复
+- `2026-04-13`: `WebSearch` 继续增强为 `Brave -> Google -> Bing RSS -> DuckDuckGo HTML -> DuckDuckGo Lite -> weather-direct`
+- `2026-04-13`: 当搜索引擎全部失败时，天气类查询会自动降级到直接天气源，而不是直接报全后端失败
+
 ## 中文说明
 
 ### 项目简介
@@ -41,6 +47,9 @@
 - 启动时自动检查 npm 最新版本，旧版用户可看到更新提示并直接升级
 - 等待计时与运行状态只显示在状态区域，不再每秒写入对话正文污染上下文
 - WebSearch 增加搜索后端降级路径，不再只依赖单一 DuckDuckGo HTML 入口
+- WebSearch 现在优先尝试 Brave / Google / Bing RSS，再回退到 DuckDuckGo
+- 对天气类查询增加 direct weather fallback，避免搜索引擎全挂时直接失败
+- 内置 `claw` 二进制已包含 Gemma 工具调用损坏 JSON 自动恢复修复
 
 ### 安装方式
 
@@ -172,6 +181,9 @@ Current UI capabilities include:
 - Startup npm version checks so older installs can see an update prompt and upgrade directly
 - Waiting timers and silent-running indicators now stay in the status area instead of rewriting chat transcript content every second
 - WebSearch now has backend fallback behavior instead of depending only on a single DuckDuckGo HTML endpoint
+- WebSearch now prefers Brave / Google / Bing RSS before falling back to DuckDuckGo
+- Weather queries now have a direct-weather fallback when search engines all fail
+- The bundled `claw` binary includes the Gemma malformed tool-call JSON recovery fix
 
 ### Installation
 
