@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "using the pug template engine to write the clunky xml",
   "dependencies": {
-    "pug": "^1.11.0"
+    "pug": "^3.0.4"
   },
   "devDependencies": {},
   "author": "Harald Schilly",
