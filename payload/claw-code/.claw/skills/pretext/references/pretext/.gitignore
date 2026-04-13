@@ -1,0 +1,25 @@
+user/*
+doc/guide/webwork-representations.ptx
+script/mjsre/node_modules/
+script/mjsre/package-lock.json
+script/dynsub/node_modules/
+script/dynsub/package-lock.json
+pretext/__pycache__/**
+pretext/lib/__pycache__/**
+.error_schema.log
+# WW examples
+examples/webwork/Makefile.paths
+examples/webwork/sample-chapter/my-generated/*
+examples/webwork/minimal/generated/*
+# any file ending in ~ (backups, usually)
+*~
+.vscode
+**/_build
+**/output
+**/cli.log
+**/rsbuild
+**/build
+**/node_modules/
+
+# cssbuilder output
+css/dist/*.map

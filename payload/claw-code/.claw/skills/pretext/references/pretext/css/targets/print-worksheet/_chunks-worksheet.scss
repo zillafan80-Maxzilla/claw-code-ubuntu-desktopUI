@@ -1,0 +1,72 @@
+// Standard collection of chunks. This file should only be modified
+// to fix bugs or improve the default-modern theme. If you want to
+// make changes for use in some other theme, create a _chunks-XXX file
+// in that theme's directory.
+
+$border-radius: 8px !default;
+
+// One stop include for default style content blocks
+@use 'components/chunks/asides-floating';
+@use 'components/chunks/codelike';
+@use 'components/chunks/exercises';
+@use 'components/chunks/solutions';
+@use 'components/chunks/sidebyside';
+@use 'components/chunks/discussion-inline';
+@use 'components/chunks/knowls' with ($border-radius: $border-radius);
+
+@use 'components/chunks/helpers/inline-heading-mixin';
+
+
+.theorem-like,
+.definition-like,
+.example-like,
+.project-like,
+.remark-like,
+.openproblem-like,
+.computation-like,
+.assemblage-like {
+  > .heading {
+    display: block;
+    font-size: 1.1em;
+  }
+}
+
+.proof {
+  padding-bottom: 1.5em;
+  &::after {
+    content: "□";
+    float: right;
+  }
+
+  .heading {
+    font-size: unset;
+    font-weight: bold;
+    font-style: italic;
+  }
+}
+
+.solution-like {
+  .heading {
+    display: inline;
+    font-style: italic;
+    font-size: unset;
+  }
+}
+
+
+ .goal-like {
+  border: none;
+  padding: 0;
+}
+
+.goal-like > .heading {
+  margin-top: -0.5em;
+  padding: 0;
+  margin: 0;
+  font-size: 1.1em;
+}
+
+.paragraphs,
+article {
+  @include inline-heading-mixin.heading;
+}

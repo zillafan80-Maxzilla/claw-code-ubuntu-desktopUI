@@ -1,0 +1,86 @@
+<diagram>
+  <annotations>
+    <annotation id="prefigure-tangent-figure" speech2="The graph of a function and its tangent line at the point a equals 1">
+      <grouped>prefigure-tangent-figure</grouped>
+      <position>1</position>
+      <children>
+        <active>prefigure-tangent-grid-axes</active>
+        <active>prefigure-tangent-graph-tangent</active>
+      </children>
+      <components>
+        <active>prefigure-tangent-grid-axes</active>
+        <active>prefigure-tangent-graph-tangent</active>
+      </components>
+    </annotation>
+    <annotation id="prefigure-tangent-grid-axes" speech2="The coordinate grid and axes">
+      <grouped>prefigure-tangent-grid-axes</grouped>
+      <position>1</position>
+      <children>
+        <active>prefigure-tangent-grid</active>
+        <active>prefigure-tangent-axes</active>
+      </children>
+      <components>
+        <active>prefigure-tangent-grid</active>
+        <active>prefigure-tangent-axes</active>
+      </components>
+      <parents>
+        <grouped>prefigure-tangent-figure</grouped>
+      </parents>
+    </annotation>
+    <annotation id="prefigure-tangent-grid" speech2="The coordinate grid">
+      <active>prefigure-tangent-grid</active>
+      <position>1</position>
+      <parents>
+        <grouped>prefigure-tangent-grid-axes</grouped>
+      </parents>
+    </annotation>
+    <annotation id="prefigure-tangent-axes" speech2="The coordinate axes">
+      <active>prefigure-tangent-axes</active>
+      <position>2</position>
+      <parents>
+        <grouped>prefigure-tangent-grid-axes</grouped>
+      </parents>
+    </annotation>
+    <annotation id="prefigure-tangent-graph-tangent" speech2="The graph and its tangent line">
+      <grouped>prefigure-tangent-graph-tangent</grouped>
+      <position>2</position>
+      <children>
+        <active>prefigure-tangent-graph</active>
+        <active>prefigure-tangent-point</active>
+        <active>prefigure-tangent-tangent</active>
+      </children>
+      <components>
+        <active>prefigure-tangent-graph</active>
+        <active>prefigure-tangent-point</active>
+        <active>prefigure-tangent-tangent</active>
+      </components>
+      <parents>
+        <grouped>prefigure-tangent-figure</grouped>
+      </parents>
+    </annotation>
+    <annotation id="prefigure-tangent-graph" speech2="The graph of the function f" sonify="yes">
+      <active>prefigure-tangent-graph</active>
+      <position>1</position>
+      <parents>
+        <grouped>prefigure-tangent-graph-tangent</grouped>
+      </parents>
+      <sonification>
+        <ACTIVE>prefigure-tangent-graph</ACTIVE>
+      </sonification>
+    </annotation>
+    <annotation id="prefigure-tangent-point" speech2="The point a comma f of a">
+      <active>prefigure-tangent-point</active>
+      <position>2</position>
+      <parents>
+        <grouped>prefigure-tangent-graph-tangent</grouped>
+      </parents>
+    </annotation>
+    <annotation id="prefigure-tangent-tangent" speech2="The tangent line to the graph of f at the point">
+      <active>prefigure-tangent-tangent</active>
+      <position>3</position>
+      <parents>
+        <grouped>prefigure-tangent-graph-tangent</grouped>
+      </parents>
+    </annotation>
+  </annotations>
+</diagram>

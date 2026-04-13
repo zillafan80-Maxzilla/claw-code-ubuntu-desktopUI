@@ -1,0 +1,135 @@
+@mixin code-text {
+  font-family: var(--font-monospace);
+  background: var(--code-background);
+  font-size: .93rem;
+  line-height: 1.2;
+}
+
+@mixin code-inline-spacing {
+  line-height: normal;  //prevent extra "padding" based on line-height
+  padding: 0.0625em .15em;
+}
+
+// wide programs need to be scrollable
+.code-box {
+  overflow-x: auto;
+}
+
+.code-display {
+  overflow-x: auto;      //scroll if overflowing
+  font-family: var(--font-monospace);
+}
+
+.console,
+.program {
+  border: 1px solid var(--page-border-color);
+  padding: 5px 15px;
+  overflow-x: auto;
+  margin: 0;
+  @include code-text();
+}
+
+.code-inline {
+  font-family: var(--font-monospace);
+  white-space: pre;
+  color: var(--body-text-color);
+  background: var(--code-inline-background);
+  border: 1px solid color-mix(in oklab, var(--code-inline-background) 50%, #888);
+  border-radius: 0.2em;
+  display: inline-block;
+  overflow-x: auto;
+  max-width: 100%;
+  vertical-align: middle;
+  @include code-inline-spacing();
+}
+
+
+.prompt.unselectable {
+  user-select: none;
+}
+
+// code blocks are preformatted text that is not a program
+.code-block {
+  border-left: 1px solid #aaa;
+  padding: 0 15px 5px;
+  overflow-x: auto;
+  background: var(--code-background);
+  margin-top: 0;
+  margin-bottom: 0;
+  @include code-text();
+}
+
+.code-block::before {
+  content:' ';
+  font-size: 50%;
+  border-top: 1px solid #aaa;
+  display: block;
+  margin-right: auto;
+  margin-left: -15px;
+  width: 3.0em;
+}
+
+// special handling for code-display as it appears inside .paras
+// and may need space around it
+.code-display {
+  margin: 0.5em 0;
+}
+// if inside clipboardable, move margin to that container and turn some into padding
+// to help make sure clipboard icon is contained inside the code-display in dark mode
+.clipboardable:has(.code-display) {
+  margin: 0.25em 0;
+
+  .code-display {
+    margin: 0;
+    padding: 0.25em 0;
+  }
+}
+
+
+.clipboardable {
+  position: relative;  // To anchor the code-copy button
+  display: flow-root;
+
+  .code-copy {
+    position: absolute;
+    right: 0;
+    top: 0;
+    opacity: 0.25;
+    border-width: 0;
+    background: none;
+    cursor: pointer;
+    z-index: 1;
+    white-space-collapse: collapse;
+    padding: 1px;
+    scale: 0.85;
+
+    &:hover {
+      opacity: 0.7;
+    }
+
+    .checkmark {
+      display: none;
+    }
+
+    &.copied {
+      opacity: 1;
+      color: mediumseagreen;
+      cursor: not-allowed;
+      pointer-events: none;
+
+      .copyicon {
+        display: none;
+      }
+
+      .checkmark {
+        display: inline;
+      }
+    }
+  }
+}
+
+@media print {
+  .code-copy {
+    display: none;
+  }
+}

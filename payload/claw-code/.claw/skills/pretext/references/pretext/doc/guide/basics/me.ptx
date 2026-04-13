@@ -1,0 +1,9 @@
+<p>
+  <md>
+    \frac{d}{dx} \int_1^x \frac{1}{t}\, dt = \frac{1}{x}
+  </md>
+  <md number="yes">
+    \int_a^b f(x)\, dx = F(b) - F(a)
+  </md>
+</p>
+

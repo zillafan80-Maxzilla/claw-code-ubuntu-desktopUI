@@ -1,0 +1,8 @@
+# macOS system files
+.DS_Store
+
+# Node dependencies
+node_modules/
+
+# Production
+dist/
