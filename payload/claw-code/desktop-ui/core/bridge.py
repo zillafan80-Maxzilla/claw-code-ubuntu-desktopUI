@@ -14,13 +14,18 @@ from typing import Callable
 from core.lifecycle import LifecycleManager
 from core.settings import DesktopSettings, DesktopSettingsStore
 
-INITIAL_STREAM_SILENT_TIMEOUT_SECONDS = 45.0
-ACTIVE_STREAM_SILENT_TIMEOUT_SECONDS = 180.0
-COMMAND_TIMEOUT_SECONDS = 180.0
-JSON_TIMEOUT_SECONDS = 90.0
+INITIAL_STREAM_SILENT_TIMEOUT_SECONDS = 90.0
+ACTIVE_STREAM_SILENT_TIMEOUT_SECONDS = 240.0
+COMMAND_TIMEOUT_SECONDS = 300.0
+JSON_TIMEOUT_SECONDS = 150.0
+MAX_STREAM_CLI_LINES = 220
+STREAM_CLI_HEAD_LINES = 24
+STREAM_CLI_TAIL_LINES = 180
+TRUNCATED_STREAM_NOTICE = "… output truncated for display; showing head and latest lines …"
 
 @dataclass
 class CommandResult:
+    request_key: str
     request_text: str
     argv: list[str]
     exit_code: int
@@ -38,6 +43,7 @@ class CommandResult:
 
 @dataclass
 class BridgeEvent:
+    request_key: str
     request_text: str
     kind: str
     text: str
@@ -127,17 +133,19 @@ class ClawBridge:
         on_complete: Callable[[CommandResult], None],
         on_event: Callable[[BridgeEvent], None] | None = None,
         settings_override: DesktopSettings | None = None,
+        request_key: str | None = None,
     ) -> None:
         settings = settings_override or self.current_settings()
         argv = self._build_command(request_text, settings)
         env = self._build_env(settings)
         started_at = time.time()
+        request_key = request_key or f"req-{time.time_ns()}"
         self._append_history(
             f"排队: {settings.model} · {' '.join(argv[1:])}"
         )
         worker = threading.Thread(
             target=self._run_command,
-            args=(request_text, argv, env, started_at, on_complete, on_event),
+            args=(request_key, request_text, argv, env, started_at, on_complete, on_event),
             daemon=True,
         )
         worker.start()
@@ -210,6 +218,7 @@ class ClawBridge:
 
     def _run_command(
         self,
+        request_key: str,
         request_text: str,
         argv: list[str],
         env: dict[str, str],
@@ -243,12 +252,14 @@ class ClawBridge:
             else:
                 stdout, stderr = self._stream_command_output(
                     proc,
+                    request_key,
                     request_text,
                     on_event,
                     stream_state,
                     started_at,
                 )
             result = CommandResult(
+                request_key=request_key,
                 request_text=request_text,
                 argv=argv,
                 exit_code=proc.returncode,
@@ -261,6 +272,7 @@ class ClawBridge:
             )
             if not json_mode and self._should_retry_with_structured_fallback(result, stream_state):
                 retry_result = self._run_structured_fallback(
+                    request_key,
                     request_text,
                     argv,
                     env,
@@ -275,6 +287,7 @@ class ClawBridge:
             on_complete(result)
         except Exception as exc:
             result = CommandResult(
+                request_key=request_key,
                 request_text=request_text,
                 argv=argv,
                 exit_code=1,
@@ -406,6 +419,7 @@ class ClawBridge:
     def _stream_command_output(
         self,
         proc: subprocess.Popen[bytes],
+        request_key: str,
         request_text: str,
         on_event: Callable[[BridgeEvent], None] | None,
         stream_state: StreamRunState,
@@ -426,7 +440,7 @@ class ClawBridge:
                 stdout_parts.append(text)
                 last_output_at[0] = time.time()
                 if on_event is not None:
-                    self._emit_stream_events(request_text, text, on_event, stream_state)
+                    self._emit_stream_events(request_key, request_text, text, on_event, stream_state)
 
         def read_stderr() -> None:
             assert proc.stderr is not None
@@ -464,7 +478,7 @@ class ClawBridge:
                 break
             if now - started_at >= COMMAND_TIMEOUT_SECONDS:
                 timeout_reason[0] = (
-                    f"Desktop bridge timed out after {COMMAND_TIMEOUT_SECONDS:.0f}s total runtime."
+                f"Desktop bridge timed out after {COMMAND_TIMEOUT_SECONDS:.0f}s total runtime."
                 )
                 self._terminate_process(proc)
                 break
@@ -473,7 +487,8 @@ class ClawBridge:
         stdout_thread.join()
         stderr_thread.join()
         if on_event is not None and stream_state.buffer.strip():
-            self._emit_stream_line(
+                self._emit_stream_line(
+                request_key,
                 request_text,
                 stream_state.buffer,
                 on_event,
@@ -486,6 +501,7 @@ class ClawBridge:
 
     def _emit_stream_events(
         self,
+        request_key: str,
         request_text: str,
         chunk: str,
         on_event: Callable[[BridgeEvent], None],
@@ -497,10 +513,11 @@ class ClawBridge:
         stream_state.buffer += cleaned
         while "\n" in stream_state.buffer:
             line, stream_state.buffer = stream_state.buffer.split("\n", 1)
-            self._emit_stream_line(request_text, line, on_event, stream_state)
+            self._emit_stream_line(request_key, request_text, line, on_event, stream_state)
 
     def _emit_stream_line(
         self,
+        request_key: str,
         request_text: str,
         line: str,
         on_event: Callable[[BridgeEvent], None],
@@ -519,9 +536,11 @@ class ClawBridge:
             text = text[text.find("✘ ") :]
         if not stream_state.cli_lines or stream_state.cli_lines[-1] != text:
             stream_state.cli_lines.append(text)
+            self._truncate_cli_lines(stream_state.cli_lines)
             stream_state.saw_any_event = True
             on_event(
                 BridgeEvent(
+                    request_key=request_key,
                     request_text=request_text,
                     kind="cli",
                     text="\n".join(stream_state.cli_lines),
@@ -534,6 +553,7 @@ class ClawBridge:
                 stream_state.saw_any_event = True
                 on_event(
                     BridgeEvent(
+                        request_key=request_key,
                         request_text=request_text,
                         kind="status",
                         text=text,
@@ -550,6 +570,7 @@ class ClawBridge:
                 stream_state.saw_any_event = True
                 on_event(
                     BridgeEvent(
+                        request_key=request_key,
                         request_text=request_text,
                         kind="tool",
                         text=stream_state.tool_log,
@@ -628,6 +649,7 @@ class ClawBridge:
 
     def _run_structured_fallback(
         self,
+        request_key: str,
         request_text: str,
         argv: list[str],
         env: dict[str, str],
@@ -636,6 +658,7 @@ class ClawBridge:
         if on_event is not None:
             on_event(
                 BridgeEvent(
+                    request_key=request_key,
                     request_text=request_text,
                     kind="status",
                     text="↻ Retrying with structured tool fallback...",
@@ -666,6 +689,7 @@ class ClawBridge:
                 f"Structured fallback timed out after {JSON_TIMEOUT_SECONDS:.0f}s while waiting for model output.",
             )
             result = CommandResult(
+                request_key=request_key,
                 request_text=request_text,
                 argv=retry_argv,
                 exit_code=retry_proc.returncode,
@@ -764,6 +788,14 @@ class ClawBridge:
         if text.startswith("✓ ") or text.startswith("✗ "):
             return text
         return ""
+
+    @staticmethod
+    def _truncate_cli_lines(lines: list[str]) -> None:
+        if len(lines) <= MAX_STREAM_CLI_LINES:
+            return
+        head = lines[:STREAM_CLI_HEAD_LINES]
+        tail = lines[-STREAM_CLI_TAIL_LINES:]
+        lines[:] = [*head, TRUNCATED_STREAM_NOTICE, *tail]
 
     def _clean_terminal_output(self, stdout: str) -> str:
         cleaned = self._strip_terminal_controls(stdout).replace("\r", "\n")

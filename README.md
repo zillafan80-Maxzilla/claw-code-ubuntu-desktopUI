@@ -4,6 +4,10 @@
 
 最新仓库更新 / Latest repository update:
 
+- `2026-04-13`: 修复桌面 bridge 的请求键冲突问题；相同提示词重复提交时不再共用同一条待处理队列
+- `2026-04-13`: 修复 transcript 标记逻辑，更新消息时不再把旧内容残留在对话框中造成重复输出
+- `2026-04-13`: 放宽 bridge 的初始/活动/总超时窗口，并限制超长 CLI 流输出在 UI 中的展示长度
+- `2026-04-13`: 从 bundled reference skills 中移除未使用的示例 `package.json/package-lock`，缩小 GitHub 依赖告警面
 - `2026-04-13`: 发布 `v2.3`，帮助菜单新增“内置技能清单”页面，可直接查看默认 bundled skills 及用途摘要
 - `2026-04-13`: 默认发布包现在内置 `.claw/skills`，安装桌面 UI 时会同步部署默认技能集到目标 `claw-code` 根目录
 - `2026-04-13`: 默认 system prompt 与项目 `.claw/instructions.md` 已加入 bundled skill index，方便 `claw code` 直接按技能名和任务域调取

@@ -671,6 +671,7 @@ class MainWindow(tk.Tk):
         self.message_log: list[dict[str, object]] = []
         self.pending_messages: dict[str, list[dict[str, object]]] = {}
         self.discarded_requests: dict[str, int] = {}
+        self._request_seq = 0
         self.current_session: DesktopSession = self.session_store.create_session()
         self.session_rows: list[SessionSummary] = []
         self.latest_known_version: str | None = None
@@ -1285,6 +1286,10 @@ class MainWindow(tk.Tk):
         self.chat.remove_message(message_id)
         self.message_log = [row for row in self.message_log if row.get("message_id") != message_id]
 
+    def _new_request_key(self, request_text: str) -> str:
+        self._request_seq += 1
+        return f"req-{self._request_seq}-{abs(hash((request_text, time.time_ns())))}"
+
     def _seed_welcome(self) -> None:
         self._chat_add(self._t("welcome_message"), role="system", title=self._t("welcome_title"))
         self._chat_add(self._t("adapter_message"), role="assistant", title=self._t("adapter_title"))
@@ -1697,6 +1702,7 @@ class MainWindow(tk.Tk):
         if npm_bin is None:
             self.results.put(
                 CommandResult(
+                    request_key="__ui_update__",
                     request_text="__ui_update__",
                     argv=["npm"],
                     exit_code=127,
@@ -1723,6 +1729,7 @@ class MainWindow(tk.Tk):
             if install_proc.returncode != 0:
                 self.results.put(
                     CommandResult(
+                        request_key="__ui_update__",
                         request_text="__ui_update__",
                         argv=list(install_proc.args),
                         exit_code=install_proc.returncode,
@@ -1744,6 +1751,7 @@ class MainWindow(tk.Tk):
             if prefix_proc.returncode != 0:
                 self.results.put(
                     CommandResult(
+                        request_key="__ui_update__",
                         request_text="__ui_update__",
                         argv=list(prefix_proc.args),
                         exit_code=prefix_proc.returncode,
@@ -1769,6 +1777,7 @@ class MainWindow(tk.Tk):
                 stderr_parts.append(update_proc.stderr.strip())
             self.results.put(
                 CommandResult(
+                    request_key="__ui_update__",
                     request_text="__ui_update__",
                     argv=list(update_proc.args),
                     exit_code=update_proc.returncode,
@@ -1781,6 +1790,7 @@ class MainWindow(tk.Tk):
         except Exception as exc:
             self.results.put(
                 CommandResult(
+                    request_key="__ui_update__",
                     request_text="__ui_update__",
                     argv=[NPM_PACKAGE_NAME],
                     exit_code=1,
@@ -1804,6 +1814,7 @@ class MainWindow(tk.Tk):
                 return
             self.results.put(
                 CommandResult(
+                    request_key="__update_probe__",
                     request_text="__update_probe__",
                     argv=["github-release", latest],
                     exit_code=0,
@@ -1854,8 +1865,9 @@ class MainWindow(tk.Tk):
         self.status_var.set(self._t("status_running"))
         self.chat.set_runtime_state("running", self._t("runstate_running"))
         current_settings = self._current_form_settings()
+        request_key = self._new_request_key(request)
         try:
-            self.pending_messages.setdefault(request, []).append(
+            self.pending_messages.setdefault(request_key, []).append(
                 {
                     "message_id": None,
                     "started_at": time.time(),
@@ -1864,17 +1876,18 @@ class MainWindow(tk.Tk):
                     "cli_text": "",
                 }
             )
-            self._tick_pending_message(request)
+            self._tick_pending_message(request_key)
             self.bridge.submit(
                 request,
                 self.results.put,
                 self.results.put,
                 settings_override=current_settings,
+                request_key=request_key,
             )
             self._refresh_log()
             self._refresh_process_list()
         except Exception as exc:
-            self._clear_pending_message(request)
+            self._clear_pending_message(request_key)
             self._chat_add(str(exc), role="error", title=self._t("validation_title"))
             self.status_var.set(self._t("status_denied"))
 
@@ -1905,9 +1918,10 @@ class MainWindow(tk.Tk):
             self.after(120, self._drain_results)
 
     def _handle_bridge_event(self, event: BridgeEvent) -> None:
-        if self._should_ignore_request(event.request_text):
+        request_key = getattr(event, "request_key", None) or event.request_text
+        if self._should_ignore_request(request_key):
             return
-        pending_queue = self.pending_messages.get(event.request_text, [])
+        pending_queue = self.pending_messages.get(request_key, [])
         pending = pending_queue[0] if pending_queue else None
         if pending is None:
             return
@@ -1930,8 +1944,9 @@ class MainWindow(tk.Tk):
             return
 
     def _handle_result(self, result: CommandResult) -> None:
-        if self._should_ignore_request(result.request_text):
-            self._consume_discarded_request(result.request_text)
+        request_key = getattr(result, "request_key", None) or result.request_text
+        if self._should_ignore_request(request_key):
+            self._consume_discarded_request(request_key)
             self._refresh_log()
             self._refresh_process_list()
             return
@@ -1955,10 +1970,10 @@ class MainWindow(tk.Tk):
             self._t("runstate_ended") if result.exit_code == 0 else self._t("runstate_stopped"),
         )
 
-        pending_queue = self.pending_messages.get(result.request_text, [])
+        pending_queue = self.pending_messages.get(request_key, [])
         pending = pending_queue.pop(0) if pending_queue else None
-        if not pending_queue and result.request_text in self.pending_messages:
-            self.pending_messages.pop(result.request_text, None)
+        if not pending_queue and request_key in self.pending_messages:
+            self.pending_messages.pop(request_key, None)
 
         cli_payload = self.bridge.render_cli_transcript(result).strip()
         if result.stdout:
@@ -2056,8 +2071,8 @@ class MainWindow(tk.Tk):
         finally:
             self.after(150, self.destroy)
 
-    def _tick_pending_message(self, request: str) -> None:
-        pending_queue = self.pending_messages.get(request)
+    def _tick_pending_message(self, request_key: str) -> None:
+        pending_queue = self.pending_messages.get(request_key)
         if not pending_queue:
             return
         pending = pending_queue[0]
@@ -2069,13 +2084,13 @@ class MainWindow(tk.Tk):
         elif elapsed >= 3.0:
             body = f"{body}\n\n{self._t('pending_silent')}"
         self.status_var.set(body.replace("\n\n", " · ").replace("\n", " · "))
-        self.after(400, lambda: self._tick_pending_message(request))
+        self.after(400, lambda: self._tick_pending_message(request_key))
 
-    def _clear_pending_message(self, request: str) -> None:
-        pending_queue = self.pending_messages.get(request, [])
+    def _clear_pending_message(self, request_key: str) -> None:
+        pending_queue = self.pending_messages.get(request_key, [])
         pending = pending_queue.pop() if pending_queue else None
-        if not pending_queue and request in self.pending_messages:
-            self.pending_messages.pop(request, None)
+        if not pending_queue and request_key in self.pending_messages:
+            self.pending_messages.pop(request_key, None)
         if pending is None:
             return
         tool_message_id = pending.get("tool_message_id")
